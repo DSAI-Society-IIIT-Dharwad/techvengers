@@ -1,12 +1,35 @@
 # Network Traffic Analysis & ML Security System
 
-A comprehensive network security analysis system with machine learning capabilities for real-time threat detection and packet analysis.
+A comprehensive network security analysis system with **real-time machine learning capabilities** for threat detection and packet analysis.
+
+## 🚀 **NEW: Real-Time ML Desktop Application**
+
+### **🎯 Featured: Desktop Dashboard with Live ML Training**
+
+The project now includes a powerful desktop application that implements **real-time machine learning training** on packet streams:
+
+- **🤖 Real-Time Training**: Models train automatically on your network traffic
+- **🎬 Smooth Animations**: Professional UI with pulsing effects and visual feedback  
+- **📊 Dynamic Analysis**: Real-time threat level assessment and confidence scoring
+- **🛡️ Multi-Page Interface**: Dashboard, Traffic Monitor, Device Monitor, Threat Analysis, ML Insights
+
+### **Quick Start - Desktop Application**
+
+```bash
+# Start the real-time ML desktop dashboard
+python network_dashboard_desktop.py
+
+# Or use the launcher
+python start_desktop_dashboard.py
+```
 
 ## 🚀 Project Overview
 
 This project provides a complete network security solution with:
-- **Real-time packet capture and analysis**
-- **Machine learning-based anomaly detection**
+- **Real-time ML training on packet streams**
+- **Live anomaly detection with confidence scoring**
+- **Dynamic threat analysis with visual indicators**
+- **Professional desktop interface with animations**
 - **Automated threat detection**
 - **Historical data analysis**
 
@@ -14,6 +37,8 @@ This project provides a complete network security solution with:
 
 ```
 hackathon/
+├── 📄 network_dashboard_desktop.py  # **NEW: Real-time ML desktop application**
+├── 📄 start_desktop_dashboard.py    # Desktop app launcher
 ├── 📁 src/                          # Core application source code
 │   ├── analyzer.py                  # Batch ML analysis engine
 │   ├── streaming_analyzer.py       # Real-time streaming analysis
@@ -117,7 +142,17 @@ hackathon/
 pip install -r requirements.txt
 ```
 
-### Launch Options
+### **Desktop Application (Recommended)**
+
+```bash
+# Real-time ML desktop dashboard
+python network_dashboard_desktop.py
+
+# Or use the launcher
+python start_desktop_dashboard.py
+```
+
+### **Legacy Launch Options**
 
 1. **Complete System**:
    ```bash
