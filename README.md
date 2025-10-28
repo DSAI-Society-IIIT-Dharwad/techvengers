@@ -1,220 +1,250 @@
-# Network Traffic Analyzer for Home Security
+# Network Traffic Analysis & ML Security System
 
-An AI-powered system that monitors live home network traffic, detects suspicious activity, and visualizes it in real-time.
+A comprehensive network security analysis system with machine learning capabilities for real-time threat detection and packet analysis.
 
-## 🏗️ Project Structure
+## 🚀 Project Overview
+
+This project provides a complete network security solution with:
+- **Real-time packet capture and analysis**
+- **Machine learning-based anomaly detection**
+- **Automated threat detection**
+- **Historical data analysis**
+
+## 📁 Project Structure
 
 ```
 hackathon/
-├── src/                          # Core application modules
-│   ├── analyzer.py              # Main ML analysis engine
-│   ├── streaming_analyzer.py    # Real-time streaming analysis
-│   ├── working_packet_sniffer.py # Packet capture system
-│   ├── wifi_auth_handler.py     # WiFi authentication handler
-│   ├── model_manager.py         # Model management utilities
-│   ├── dashboard.py             # Basic visualization dashboard
-│   └── enhanced_dashboard.py    # Advanced dashboard with GeoIP
-├── data/                         # Data storage
-│   ├── packets.csv              # Raw packet data
-│   ├── packets_extended.csv     # Extended packet dataset
-│   ├── alerts.csv               # Generated security alerts
-│   ├── streaming_alerts.csv      # Real-time streaming alerts
-│   └── trained_models/          # Saved ML models
-│       ├── isolation_forest_*.joblib
-│       ├── one_class_svm_*.joblib
-│       ├── local_outlier_factor_*.joblib
-│       ├── standard_scaler_*.joblib
-│       └── model_metadata_*.json
-├── scripts/                      # Utility scripts
-│   ├── launcher.py              # Main application launcher
-│   ├── network_check.py         # Network diagnostics
-│   ├── test_saved_models.py     # Model testing utilities
-│   ├── analyze_alerts.py        # Alert analysis tools
-│   ├── realtime_feeder.py       # Real-time data feeder
-│   ├── dashboard_launcher.py    # Dashboard launcher
-│   └── test_dashboard.py        # Dashboard testing utility
-├── docs/                         # Documentation
-│   ├── SETUP_GUIDE.md           # Installation and setup
-│   ├── MODEL_SAVING_GUIDE.md    # Model management guide
-│   ├── PART2_COMPLETE.md        # Part 2 implementation status
-│   ├── PART3_COMPLETE.md        # Part 3 implementation status
-│   └── FINAL_TRAINING_SUMMARY.txt # Training results
-├── tests/                        # Test files (empty for now)
-├── config/                       # Configuration files (empty for now)
-├── requirements.txt              # Python dependencies
-└── README.md                     # This file
+├── 📁 src/                          # Core application source code
+│   ├── analyzer.py                  # Batch ML analysis engine
+│   ├── streaming_analyzer.py       # Real-time streaming analysis
+│   ├── model_manager.py            # ML model management
+│   ├── wifi_auth_handler.py       # WiFi authentication handler
+│   └── working_packet_sniffer.py  # Packet capture engine
+│
+├── 📁 data/                         # Data storage and models
+│   ├── 📁 trained_models/          # Saved ML models
+│   │   ├── isolation_forest_*.joblib
+│   │   ├── one_class_svm_*.joblib
+│   │   ├── local_outlier_factor_*.joblib
+│   │   ├── standard_scaler_*.joblib
+│   │   └── *_metadata_*.json
+│   ├── alerts.csv                  # Generated security alerts
+│   ├── streaming_alerts.csv       # Real-time alerts
+│   ├── packets.csv                # Raw packet data
+│   ├── packets_extended.csv      # Enhanced packet data
+│   └── packets_clean.csv         # Cleaned packet data
+│
+├── 📁 scripts/                      # Utility and helper scripts
+│   ├── analyze_alerts.py          # Alert analysis tools
+│   ├── comparison_analysis.py    # Comparative analysis
+│   ├── launcher.py               # Main system launcher
+│   ├── ml_model_summary.py      # ML model summary
+│   ├── model_summary.py         # Model statistics
+│   ├── network_check.py         # Network connectivity check
+│   ├── realtime_feeder.py      # Real-time data feeder
+│   ├── simple_packet_sniffer.py # Basic packet sniffer
+│   └── test_*.py               # Various test scripts
+│
+├── 📁 web-app/                      # Web application
+│   ├── 📁 network-dashboard/      # React dashboard
+│   │   └── 📁 src/
+│   │       ├── App.js
+│   │       ├── App.css
+│   │       └── 📁 components/
+│   │           ├── Alerts.js
+│   │           ├── Dashboard.js
+│   │           └── NetworkMap.js
+│   ├── api_server.py             # Web API server
+│   ├── demo.html                 # Demo page
+│   ├── start_web_app.py         # Web app launcher
+│   └── test_api.py              # API testing
+│
+├── 📁 docs/                        # Documentation
+│   ├── 📁 archive/               # Archived files
+│   │   ├── live_dashboard.html
+│   │   ├── live_network_dashboard.html
+│   │   ├── ml_security_dashboard.html
+│   │   └── network_dashboard.html
+│   ├── FINAL_TRAINING_SUMMARY.txt
+│   ├── MODEL_SAVING_GUIDE.md
+│   ├── PART2_COMPLETE.md
+│   ├── PART3_COMPLETE.md
+│   └── SETUP_GUIDE.md
+│
+├── 📁 tests/                       # Test files
+│   ├── test_complete_system.py
+│   ├── test_live_system.py
+│   └── test_web_app.py
+│
+├── 📁 config/                      # Configuration files
+│   └── config.ini
+│
+├── 📄 complete_dashboard.html      # Main dashboard interface
+├── 📄 README.md                   # This file
+├── 📄 requirements.txt            # Python dependencies
+├── 📄 FINAL_PROJECT_SUMMARY.md    # Project summary
+├── 🚀 start_*.bat                 # System launchers
+└── 🧹 cleanup.py                  # Project cleanup utility
 ```
+
+## 🛠️ Key Components
+
+### 1. **Core Analysis Engines**
+- **`src/analyzer.py`**: Batch ML analysis for historical data
+- **`src/streaming_analyzer.py`**: Real-time streaming analysis
+- **`src/live_network_analyzer.py`**: Live network monitoring
+
+### 2. **Machine Learning Models**
+- **Isolation Forest**: Ensemble-based anomaly detection
+- **One-Class SVM**: Novelty detection with kernel methods
+- **Local Outlier Factor**: Density-based anomaly detection
+- **Standard Scaler**: Feature normalization
+
+### 3. **Web Interface**
+- **`complete_dashboard.html`**: Main dashboard interface
+- **`web-app/`**: React-based web application
+- **API servers**: RESTful API endpoints
+
+### 4. **Data Management**
+- **`data/trained_models/`**: Saved ML models with timestamps
+- **`data/*.csv`**: Packet data and alerts
+- **`src/model_manager.py`**: Model loading/saving utilities
 
 ## 🚀 Quick Start
 
-### 1. Installation
-
+### Prerequisites
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# For Windows users: Install Npcap for full packet capture
-# Download from: https://nmap.org/npcap/
 ```
 
-### 2. Run the Application
+### Launch Options
 
-```bash
-# Use the launcher (recommended)
-python scripts/launcher.py
+1. **Complete System**:
+   ```bash
+   start_complete_system.bat
+   ```
 
-# Or run components directly
-python src/working_packet_sniffer.py    # Capture packets
-python src/analyzer.py                  # Analyze captured data
-python src/streaming_analyzer.py        # Real-time analysis
-python scripts/dashboard_launcher.py    # Launch dashboard
-```
+2. **Live Monitoring**:
+   ```bash
+   start_live_system.bat
+   ```
+
+3. **ML Analysis**:
+   ```bash
+   start_ml_system.bat
+   ```
+
+4. **Web Application**:
+   ```bash
+   start_web_app.bat
+   ```
 
 ## 📊 Features
 
-### Part 1: Packet Capture
-- **Multi-method capture**: Scapy Layer 3, raw sockets, psutil monitoring
-- **WiFi authentication**: Automatic captive portal detection and handling
-- **Real-time logging**: CSV output with comprehensive packet metadata
-- **Cross-platform**: Works on Windows, Linux, and macOS
+### 🔍 **Network Analysis**
+- Real-time packet capture
+- Protocol analysis (TCP, UDP, ICMP)
+- Traffic pattern recognition
+- Bandwidth monitoring
 
-### Part 2: AI/ML Analysis
-- **Multiple ML models**: Isolation Forest, One-Class SVM, Local Outlier Factor
-- **Feature engineering**: Behavioral analysis per IP address
-- **Anomaly detection**: Statistical, rule-based, and ML-based detection
-- **Risk scoring**: Low, Medium, High risk levels
-- **Model persistence**: Save and load trained models
+### 🤖 **Machine Learning**
+- Automated anomaly detection
+- Threat classification
+- Pattern learning
+- Model persistence
 
-### Part 3: Real-time Streaming
-- **Sliding window analysis**: Continuous packet processing
-- **Adaptive baselines**: Learning normal behavior patterns
-- **Live alerts**: Real-time anomaly detection and alerting
-- **Model updates**: Continuous learning from new data
+### 📈 **Dashboards**
+- Interactive network maps
+- Real-time alerts
+- Historical analysis
+- Performance metrics
 
-### Part 4: Visualization Dashboard
-- **Real-time dashboard**: Live network monitoring interface
-- **Interactive visualizations**: Charts, graphs, and maps
-- **GeoIP mapping**: World map with connection locations
-- **Security alerts**: Color-coded risk levels and details
-- **Auto-refresh**: Configurable real-time updates
+### 🚨 **Security Features**
+- DDoS detection
+- Port scanning detection
+- Unusual traffic pattern identification
+- Automated alerting
+
+## 📋 Usage Examples
+
+### Load Pre-trained Models
+```python
+from src.analyzer import NetworkTrafficAnalyzer
+
+analyzer = NetworkTrafficAnalyzer('data/packets_extended.csv')
+analyzer.load_models()  # Loads saved ML models
+alerts = analyzer.detect_anomalies()
+```
+
+### Real-time Monitoring
+```python
+from src.streaming_analyzer import StreamingPacketProcessor
+
+processor = StreamingPacketProcessor()
+processor.load_models()  # Loads streaming models
+processor.start_processing()
+```
+
+### Model Management
+```python
+from src.model_manager import ModelManager
+
+manager = ModelManager()
+manager.print_model_info()
+manager.test_model_prediction()
+```
 
 ## 🔧 Configuration
 
-### Packet Capture Options
-- **Capture count**: 10, 50, 100 packets (or unlimited)
-- **Output format**: CSV with timestamp, IPs, ports, protocols, sizes
-- **Authentication**: Automatic WiFi captive portal handling
-
-### ML Model Parameters
-- **Contamination**: 10% expected anomaly rate
-- **Features**: 20+ behavioral metrics per IP
-- **Training**: Unsupervised learning on normal traffic
-- **Detection**: Multi-model ensemble approach
-
-### Streaming Analysis
-- **Window size**: 50-100 packets per analysis window
-- **Update interval**: 3-5 seconds between analysis cycles
-- **Baseline period**: 5-10 windows for baseline establishment
-
-## 📈 Performance
-
-### Training Results (11,000 packets)
-- **Models trained**: Isolation Forest, One-Class SVM, Local Outlier Factor
-- **Feature vectors**: 20+ behavioral metrics per IP
-- **Detection accuracy**: Realistic anomaly detection with low false positives
-- **Processing speed**: Real-time analysis capable
-
-### Alert Types Detected
-- **High packet rates**: Unusual traffic volume
-- **Port scanning**: Multiple destination ports
-- **Destination diversity**: Unusual connection patterns
-- **Statistical anomalies**: Deviations from baseline behavior
-- **ML anomalies**: Complex pattern-based detection
-
-## 🛠️ Development
-
-### Adding New Features
-1. Core modules go in `src/`
-2. Utility scripts go in `scripts/`
-3. Data files go in `data/`
-4. Documentation goes in `docs/`
-
-### Model Management
-- Models are automatically saved to `data/trained_models/`
-- Use `scripts/test_saved_models.py` to test loaded models
-- Model metadata includes training parameters and feature columns
-
-### Testing
-- Use `scripts/network_check.py` for network diagnostics
-- Use `scripts/test_saved_models.py` for model validation
-- Use `scripts/analyze_alerts.py` for alert analysis
-
-## 📋 Requirements
-
-### Python Dependencies
-```
-scapy==2.5.0
-pandas==2.1.4
-python-dateutil==2.8.2
-psutil==5.9.6
-requests==2.31.0
-scikit-learn
-joblib
-streamlit
-plotly
-geoip2
-pycountry
-```
-
-### System Requirements
-- **Python**: 3.8+
-- **OS**: Windows 10+, Linux, macOS
-- **Privileges**: Administrator/root for full packet capture
-- **Network**: Active internet connection for WiFi authentication
-
-## 🔒 Security Features
-
-### Detected Threats
-- **Port scanning**: Rapid connection attempts to multiple ports
-- **DDoS patterns**: High packet rates from single sources
-- **Beaconing**: Low-rate, long-duration connections
-- **Protocol anomalies**: Unusual protocol usage patterns
-- **Geographic anomalies**: Connections to suspicious IP ranges
-
-### Alert Levels
-- **HIGH**: Immediate attention required (port scans, DDoS)
-- **MEDIUM**: Suspicious activity (high packet rates, unusual patterns)
-- **LOW**: Potential anomalies (statistical deviations)
+Edit `config/config.ini` to customize:
+- Network interfaces
+- Analysis parameters
+- Alert thresholds
+- Model settings
 
 ## 📚 Documentation
 
-- **Setup Guide**: `docs/SETUP_GUIDE.md`
-- **Model Guide**: `docs/MODEL_SAVING_GUIDE.md`
-- **Implementation Status**: `docs/PART2_COMPLETE.md`
-- **Training Summary**: `docs/FINAL_TRAINING_SUMMARY.txt`
+- **`docs/SETUP_GUIDE.md`**: Detailed setup instructions
+- **`docs/MODEL_SAVING_GUIDE.md`**: ML model management
+- **`docs/PART2_COMPLETE.md`**: Analysis engine documentation
+- **`docs/PART3_COMPLETE.md`**: Web interface documentation
+
+## 🧪 Testing
+
+Run tests to verify system functionality:
+```bash
+python tests/test_complete_system.py
+python tests/test_live_system.py
+python tests/test_web_app.py
+```
+
+## 🧹 Maintenance
+
+Use the cleanup utility to maintain project organization:
+```bash
+python cleanup.py
+```
+
+## 📈 Performance
+
+- **Training Time**: < 1 minute per model
+- **Storage**: ~227 KB for all models
+- **Real-time Processing**: 50 packets per window
+- **Update Interval**: 3 seconds
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+1. Follow the organized project structure
+2. Add new features to appropriate directories
+3. Update documentation for new components
+4. Test thoroughly before committing
 
 ## 📄 License
 
 This project is part of a hackathon submission for network security analysis.
 
-## 🆘 Support
-
-For issues and questions:
-1. Check the documentation in `docs/`
-2. Run `scripts/network_check.py` for diagnostics
-3. Check the launcher options in `scripts/launcher.py`
-
 ---
 
-**Status**: ✅ Complete - All four parts implemented and tested
-**Last Updated**: October 2025
-**Models Trained**: 11,000+ packets with realistic results
-**Dashboard**: Real-time visualization with GeoIP mapping
+**Status**: ✅ Production Ready  
+**Last Updated**: October 29, 2025  
+**Version**: 1.0.0

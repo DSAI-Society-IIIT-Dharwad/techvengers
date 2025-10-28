@@ -5,7 +5,3 @@ psutil==5.9.6
 requests==2.31.0
 scikit-learn
 joblib
-streamlit
-plotly
-geoip2
-pycountry

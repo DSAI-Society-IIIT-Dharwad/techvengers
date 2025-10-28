@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Traffic Analyzer Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border-radius: 15px;
+            border: 1px solid #333;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #1976d2, #dc004e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            color: #888;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #333;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .stat-card h3 {
+            color: #888;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1976d2;
+        }
+        
+        .stat-card .value.danger {
+            color: #dc004e;
+        }
+        
+        .chart-container {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid #333;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        
+        .chart-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #ffffff;
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+        
+        .error {
+            background: #dc004e;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .success {
+            background: #4caf50;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .alert-summary {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        
+        .alert-chips {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        
+        .alert-chip {
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .alert-chip.high {
+            background: #dc004e;
+            color: white;
+        }
+        
+        .alert-chip.medium {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .alert-chip.low {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(45deg, #1976d2, #dc004e);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(25, 118, 210, 0.3);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.online {
+            background: #4caf50;
+            box-shadow: 0 0 10px #4caf50;
+        }
+        
+        .status-indicator.offline {
+            background: #dc004e;
+            box-shadow: 0 0 10px #dc004e;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stat-card {
+                margin-bottom: 16px;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Network Traffic Analyzer</h1>
+            <p>Real-time Network Security Monitoring Dashboard</p>
+            <div style="margin-top: 15px;">
+                <span id="api-status" class="status-indicator offline"></span>
+                <span id="api-status-text">API Server: Offline</span>
+            </div>
+        </div>
+        
+        <div id="status-message"></div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Packets</h3>
+                <div class="value" id="total-packets">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Devices</h3>
+                <div class="value" id="unique-devices">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Alerts</h3>
+                <div class="value" id="total-alerts">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>High Risk Alerts</h3>
+                <div class="value danger" id="high-risk-alerts">0</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3 class="chart-title">Traffic Over Time</h3>
+            <div class="chart-wrapper">
+                <canvas id="trafficChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3 class="chart-title">Protocol Distribution</h3>
+            <div class="chart-wrapper">
+                <canvas id="protocolChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="alert-summary">
+            <h3 class="chart-title">Alert Summary</h3>
+            <div class="alert-chips">
+                <div class="alert-chip high">High Risk: <span id="high-count">0</span></div>
+                <div class="alert-chip medium">Medium Risk: <span id="medium-count">0</span></div>
+                <div class="alert-chip low">Low Risk: <span id="low-count">0</span></div>
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:5000/api';
+        let trafficChart = null;
+        let protocolChart = null;
+        
+        // Initialize charts
+        function initCharts() {
+            // Traffic Chart
+            const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+            trafficChart = new Chart(trafficCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Packets',
+                        data: [],
+                        borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#888'
+                            },
+                            grid: {
+                                color: '#333'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#888'
+                            },
+                            grid: {
+                                color: '#333'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Protocol Chart
+            const protocolCtx = document.getElementById('protocolChart').getContext('2d');
+            protocolChart = new Chart(protocolCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#1976d2',
+                            '#dc004e',
+                            '#4caf50',
+                            '#ff9800',
+                            '#9c27b0',
+                            '#00bcd4'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#ffffff',
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update API status
+        function updateApiStatus(online) {
+            const indicator = document.getElementById('api-status');
+            const text = document.getElementById('api-status-text');
+            
+            if (online) {
+                indicator.className = 'status-indicator online';
+                text.textContent = 'API Server: Online';
+            } else {
+                indicator.className = 'status-indicator offline';
+                text.textContent = 'API Server: Offline';
+            }
+        }
+        
+        // Show status message
+        function showStatus(message, type = 'error') {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 3000);
+            }
+        }
+        
+        // Load data from API
+        async function loadData() {
+            try {
+                updateApiStatus(false);
+                
+                // Try to load stats
+                const response = await axios.get(`${API_BASE_URL}/stats`, { timeout: 5000 });
+                const stats = response.data;
+                
+                updateApiStatus(true);
+                showStatus('✅ Data loaded successfully!', 'success');
+                
+                // Update statistics
+                document.getElementById('total-packets').textContent = stats.total_packets?.toLocaleString() || 0;
+                document.getElementById('unique-devices').textContent = stats.unique_devices || 0;
+                document.getElementById('total-alerts').textContent = stats.total_alerts || 0;
+                document.getElementById('high-risk-alerts').textContent = stats.high_risk_alerts || 0;
+                
+                // Update alert counts
+                document.getElementById('high-count').textContent = stats.high_risk_alerts || 0;
+                document.getElementById('medium-count').textContent = stats.medium_risk_alerts || 0;
+                document.getElementById('low-count').textContent = stats.low_risk_alerts || 0;
+                
+                // Update protocol chart
+                if (stats.protocols && Object.keys(stats.protocols).length > 0) {
+                    const protocols = Object.entries(stats.protocols);
+                    protocolChart.data.labels = protocols.map(([name]) => name);
+                    protocolChart.data.datasets[0].data = protocols.map(([, count]) => count);
+                    protocolChart.update();
+                }
+                
+                // Generate sample traffic data for demo
+                const now = new Date();
+                const labels = [];
+                const data = [];
+                
+                for (let i = 11; i >= 0; i--) {
+                    const time = new Date(now.getTime() - i * 5 * 60000); // 5 minute intervals
+                    labels.push(time.toLocaleTimeString());
+                    data.push(Math.floor(Math.random() * 100) + 50); // Random packet counts
+                }
+                
+                trafficChart.data.labels = labels;
+                trafficChart.data.datasets[0].data = data;
+                trafficChart.update();
+                
+            } catch (error) {
+                updateApiStatus(false);
+                showStatus('❌ Cannot connect to API server. Make sure to run: python api_server.py', 'error');
+                
+                // Show demo data
+                document.getElementById('total-packets').textContent = '5,247';
+                document.getElementById('unique-devices').textContent = '8';
+                document.getElementById('total-alerts').textContent = '23';
+                document.getElementById('high-risk-alerts').textContent = '3';
+                
+                document.getElementById('high-count').textContent = '3';
+                document.getElementById('medium-count').textContent = '8';
+                document.getElementById('low-count').textContent = '12';
+                
+                // Demo protocol data
+                protocolChart.data.labels = ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS'];
+                protocolChart.data.datasets[0].data = [45, 25, 15, 10, 5];
+                protocolChart.update();
+                
+                // Demo traffic data
+                const now = new Date();
+                const labels = [];
+                const data = [];
+                
+                for (let i = 11; i >= 0; i--) {
+                    const time = new Date(now.getTime() - i * 5 * 60000);
+                    labels.push(time.toLocaleTimeString());
+                    data.push(Math.floor(Math.random() * 100) + 50);
+                }
+                
+                trafficChart.data.labels = labels;
+                trafficChart.data.datasets[0].data = data;
+                trafficChart.update();
+            }
+        }
+        
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            loadData();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(loadData, 30000);
+        });
+    </script>
+</body>
+</html>
