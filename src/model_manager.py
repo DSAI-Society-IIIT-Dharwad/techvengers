@@ -25,9 +25,13 @@ import numpy as np
 class ModelManager:
     """Utility class for managing trained ML models."""
     
-    def __init__(self, models_dir: str = "trained_models"):
+    def __init__(self, models_dir: str = "data/trained_models"):
         """Initialize the model manager."""
         self.models_dir = models_dir
+        self.models = {}
+        self.scalers = {}
+        self.metadata = {}
+        self.feature_columns = []
     
     def list_models(self) -> Dict[str, List[str]]:
         """List all available trained models."""
@@ -226,6 +230,224 @@ class ModelManager:
                 print(f"  - {file}")
         else:
             print("No old model files found to delete.")
+    
+    def load_models(self, timestamp: str = None, model_type: str = "batch") -> bool:
+        """Load trained models and scalers into memory."""
+        try:
+            if not os.path.exists(self.models_dir):
+                print(f"Models directory '{self.models_dir}' not found.")
+                return False
+            
+            # Find the most recent models if timestamp not specified
+            if timestamp is None:
+                model_files = [f for f in os.listdir(self.models_dir) 
+                              if f.startswith(model_type) and f.endswith('.joblib') and 'scaler' not in f]
+                if not model_files:
+                    print(f"No {model_type} model files found.")
+                    return False
+                
+                # Extract timestamp from the most recent model file
+                latest_file = max(model_files)
+                timestamp = self._extract_timestamp(latest_file)
+                timestamp = timestamp.replace("-", "").replace(":", "").replace(" ", "_")
+            
+            # Load metadata
+            self.metadata = self.load_model_metadata(timestamp, model_type)
+            self.feature_columns = self.metadata.get('feature_columns', [])
+            
+            # Load scaler
+            scaler_path = os.path.join(self.models_dir, f"{model_type}_standard_scaler_{timestamp}.joblib")
+            if os.path.exists(scaler_path):
+                self.scalers['standard'] = joblib.load(scaler_path)
+                print(f"Loaded scaler from: {scaler_path}")
+            
+            # Load models
+            for model_name in ['isolation_forest', 'one_class_svm', 'local_outlier_factor']:
+                model_path = os.path.join(self.models_dir, f"{model_type}_{model_name}_{timestamp}.joblib")
+                if os.path.exists(model_path):
+                    self.models[model_name] = joblib.load(model_path)
+                    print(f"Loaded {model_name} model from: {model_path}")
+            
+            print(f"Successfully loaded {len(self.models)} models with {len(self.feature_columns)} features")
+            return len(self.models) > 0
+            
+        except Exception as e:
+            print(f"Error loading models: {e}")
+            return False
+    
+    def predict_single_packet(self, packet_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Predict anomaly for a single packet."""
+        if not self.models or not self.scalers:
+            return {
+                'is_anomaly': False,
+                'risk_level': 'LOW',
+                'reason': 'Models not loaded',
+                'anomaly_score': 0.0,
+                'model_predictions': {}
+            }
+        
+        try:
+            # Extract features from packet data
+            features = self._extract_packet_features(packet_data)
+            
+            if not features:
+                return {
+                    'is_anomaly': False,
+                    'risk_level': 'LOW',
+                    'reason': 'Could not extract features',
+                    'anomaly_score': 0.0,
+                    'model_predictions': {}
+                }
+            
+            # Prepare feature vector
+            feature_vector = []
+            for col in self.feature_columns:
+                feature_vector.append(features.get(col, 0))
+            
+            X = np.array(feature_vector).reshape(1, -1)
+            X_scaled = self.scalers['standard'].transform(X)
+            
+            # Get predictions from all models
+            model_predictions = {}
+            anomaly_scores = []
+            
+            for model_name, model in self.models.items():
+                try:
+                    if model_name == 'local_outlier_factor':
+                        prediction = model.fit_predict(X_scaled)
+                        score = model.negative_outlier_factor_
+                    else:
+                        prediction = model.predict(X_scaled)
+                        score = model.decision_function(X_scaled)
+                    
+                    is_anomaly = prediction[0] == -1
+                    anomaly_score = abs(score[0]) if hasattr(score, '__len__') else abs(score)
+                    
+                    model_predictions[model_name] = {
+                        'is_anomaly': is_anomaly,
+                        'score': anomaly_score
+                    }
+                    
+                    if is_anomaly:
+                        anomaly_scores.append(anomaly_score)
+                        
+                except Exception as e:
+                    print(f"Error with {model_name}: {e}")
+                    model_predictions[model_name] = {
+                        'is_anomaly': False,
+                        'score': 0.0
+                    }
+            
+            # Determine overall anomaly status
+            is_anomaly = len(anomaly_scores) > 0
+            max_score = max(anomaly_scores) if anomaly_scores else 0.0
+            
+            # Determine risk level
+            if max_score > 2.0:
+                risk_level = 'HIGH'
+            elif max_score > 1.0:
+                risk_level = 'MEDIUM'
+            else:
+                risk_level = 'LOW'
+            
+            # Generate reason
+            if is_anomaly:
+                anomaly_models = [name for name, pred in model_predictions.items() if pred['is_anomaly']]
+                reason = f"Anomaly detected by {', '.join(anomaly_models)}"
+            else:
+                reason = "Normal traffic pattern"
+            
+            return {
+                'is_anomaly': is_anomaly,
+                'risk_level': risk_level,
+                'reason': reason,
+                'anomaly_score': max_score,
+                'model_predictions': model_predictions,
+                'features_used': features
+            }
+            
+        except Exception as e:
+            print(f"Error in prediction: {e}")
+            return {
+                'is_anomaly': False,
+                'risk_level': 'LOW',
+                'reason': f'Prediction error: {str(e)}',
+                'anomaly_score': 0.0,
+                'model_predictions': {}
+            }
+    
+    def _extract_packet_features(self, packet_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract features from packet data for ML prediction."""
+        try:
+            features = {}
+            
+            # Basic packet features
+            features['packet_length'] = packet_data.get('packet_length', 0)
+            features['src_port'] = packet_data.get('src_port', 0)
+            features['dst_port'] = packet_data.get('dst_port', 0)
+            
+            # Protocol encoding
+            protocol = packet_data.get('protocol', 'unknown').upper()
+            features['protocol_tcp'] = 1 if protocol == 'TCP' else 0
+            features['protocol_udp'] = 1 if protocol == 'UDP' else 0
+            features['protocol_icmp'] = 1 if protocol == 'ICMP' else 0
+            
+            # Port-based features
+            features['is_well_known_port'] = 1 if packet_data.get('dst_port', 0) < 1024 else 0
+            features['is_privileged_port'] = 1 if packet_data.get('src_port', 0) < 1024 else 0
+            
+            # IP-based features (simplified)
+            src_ip = packet_data.get('src_ip', '0.0.0.0')
+            dst_ip = packet_data.get('dst_ip', '0.0.0.0')
+            
+            # Check for private IPs
+            features['src_is_private'] = self._is_private_ip(src_ip)
+            features['dst_is_private'] = self._is_private_ip(dst_ip)
+            
+            # Packet size categories
+            packet_size = packet_data.get('packet_length', 0)
+            features['is_small_packet'] = 1 if packet_size < 64 else 0
+            features['is_large_packet'] = 1 if packet_size > 1500 else 0
+            
+            # Time-based features (if timestamp available)
+            timestamp = packet_data.get('timestamp')
+            if timestamp:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    features['hour_of_day'] = dt.hour
+                    features['day_of_week'] = dt.weekday()
+                except:
+                    features['hour_of_day'] = 12  # Default to noon
+                    features['day_of_week'] = 0  # Default to Monday
+            
+            return features
+            
+        except Exception as e:
+            print(f"Error extracting features: {e}")
+            return {}
+    
+    def _is_private_ip(self, ip: str) -> int:
+        """Check if IP is private."""
+        try:
+            parts = ip.split('.')
+            if len(parts) != 4:
+                return 0
+            
+            first_octet = int(parts[0])
+            second_octet = int(parts[1])
+            
+            # Private IP ranges
+            if first_octet == 10:
+                return 1
+            elif first_octet == 172 and 16 <= second_octet <= 31:
+                return 1
+            elif first_octet == 192 and second_octet == 168:
+                return 1
+            else:
+                return 0
+        except:
+            return 0
 
 
 def main():
