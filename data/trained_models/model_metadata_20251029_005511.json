@@ -1,0 +1,34 @@
+{
+  "timestamp": "20251029_005511",
+  "models_trained": [
+    "isolation_forest",
+    "one_class_svm",
+    "local_outlier_factor"
+  ],
+  "scalers_trained": [
+    "standard"
+  ],
+  "feature_columns": [
+    "packet_count",
+    "avg_packet_size",
+    "max_packet_size",
+    "std_packet_size",
+    "unique_destinations",
+    "unique_dest_ports",
+    "avg_time_between_packets",
+    "total_bytes",
+    "protocol_diversity",
+    "duration_seconds",
+    "tcp_packets",
+    "udp_packets",
+    "icmp_packets",
+    "common_port_connections",
+    "high_port_connections",
+    "packets_per_second",
+    "bytes_per_second"
+  ],
+  "training_data_shape": [
+    2,
+    23
+  ]
+}

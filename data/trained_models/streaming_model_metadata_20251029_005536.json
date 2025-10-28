@@ -1,0 +1,27 @@
+{
+  "timestamp": "20251029_005536",
+  "model_type": "streaming",
+  "models_trained": [
+    "isolation_forest",
+    "one_class_svm",
+    "local_outlier_factor"
+  ],
+  "scalers_trained": [
+    "standard"
+  ],
+  "feature_columns": [
+    "packet_count",
+    "unique_source_ips",
+    "unique_dest_ips",
+    "unique_ports",
+    "protocols",
+    "avg_packet_size",
+    "total_bytes",
+    "time_span",
+    "packets_per_second",
+    "bytes_per_second"
+  ],
+  "baseline_windows": 5,
+  "window_size": 50,
+  "update_interval": 3.0
+}
