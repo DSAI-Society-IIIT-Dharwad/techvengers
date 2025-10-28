@@ -348,7 +348,7 @@ class NetworkDashboard(ctk.CTk):
     def setup_gui(self):
         """Setup the GUI components"""
         self.title("Network Security Dashboard")
- z       self.geometry("1600x1000")
+        self.geometry("1600x1000")
         self.minsize(1400, 900)
         
         # Configure grid weights
