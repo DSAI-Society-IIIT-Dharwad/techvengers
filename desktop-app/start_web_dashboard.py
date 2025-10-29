@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Desktop Dashboard Launcher
-Simple launcher for the Network Security Desktop Dashboard
+Web Dashboard Launcher
+Web version of the Network Security Dashboard
 """
 
 import subprocess
@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 
 def main():
-    """Launch the desktop dashboard"""
-    print("Network Security Desktop Dashboard")
+    """Launch the web dashboard"""
+    print("Network Security Web Dashboard")
     print("=" * 50)
-    print("Starting desktop application...")
+    print("Starting web application...")
     print("Loading ML models...")
-    print("Initializing GUI...")
+    print("Initializing web interface...")
     print("Starting real-time monitoring...")
     print()
     print("Features available:")
@@ -27,34 +27,33 @@ def main():
     print("- Live anomaly detection with training progress")
     print("- Network topology visualization")
     print("- Bandwidth usage tracking")
-    print("- Professional UI with status indicators")
+    print("- Professional web UI with status indicators")
     print()
-    print("The desktop application should open in a new window.")
-    print("If it doesn't appear, check the console for any error messages.")
+    print("The web application will be available at:")
+    print("http://localhost:5000")
     print()
     
     try:
         # Get the script directory
         script_dir = Path(__file__).parent
-        dashboard_script = script_dir / "network_dashboard_desktop.py"
+        web_app_script = script_dir / "web_dashboard.py"
         
-        if not dashboard_script.exists():
-            print("Error: network_dashboard_desktop.py not found!")
-            print(f"Expected location: {dashboard_script}")
+        if not web_app_script.exists():
+            print("Error: web_dashboard.py not found!")
+            print(f"Expected location: {web_app_script}")
             return False
         
-        # Start the desktop application
-        print("Launching desktop dashboard...")
-        subprocess.run([sys.executable, str(dashboard_script)])
+        # Start the web application
+        print("Launching web dashboard...")
+        subprocess.run([sys.executable, str(web_app_script)])
         
     except KeyboardInterrupt:
-        print("\nDashboard closed by user")
+        print("\nWeb dashboard closed by user")
     except Exception as e:
-        print(f"Error starting dashboard: {e}")
+        print(f"Error starting web dashboard: {e}")
         return False
     
     return True
 
 if __name__ == "__main__":
     main()
-

@@ -1,47 +1,70 @@
-# Network Traffic Analyzer - Clean Setup
+# Desktop Application Setup Guide
 
-## 📁 Current Files (Essential Only)
-- `simple_packet_sniffer.py` - Main packet capture script
-- `wifi_auth_handler.py` - WiFi authentication handler  
-- `launcher.py` - Quick launcher script
-- `requirements.txt` - Python dependencies
-- `packets.csv` - Output file for captured data
+## Installation
 
-## ✅ System Status
-- **WiFi Authentication**: ✅ Working (no captive portal detected)
-- **Python Dependencies**: ✅ Installed (scapy, requests)
-- **Packet Capture**: ⚠️ Requires WinPcap/Npcap on Windows
+1. **Install Python Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## 🚀 Ready to Use
+2. **Verify Installation**:
+   ```bash
+   python desktop-app/start_desktop_dashboard.py
+   ```
 
-### Current Test Results:
-```
-Network Traffic Analyzer - Packet Capture Tool
-============================================================
-Checking network connectivity...
-Detecting captive portal...
-No captive portal detected
-Network connectivity confirmed!
-```
+## Usage
 
-### For Full Packet Capture:
-1. **Install Npcap**: Download from https://nmap.org/npcap/
-2. **Run as Administrator**: Required for packet capture
-3. **Start capturing**: `python simple_packet_sniffer.py`
-
-### Quick Commands:
+### Starting the Application
 ```bash
-# Test WiFi authentication
-python wifi_auth_handler.py
-
-# Start packet capture  
-python simple_packet_sniffer.py
-
-# Use launcher
-python launcher.py
+python desktop-app/start_desktop_dashboard.py
 ```
 
-## 🎯 Next Steps
-- Install Npcap for Windows packet capture
-- Run as Administrator for full functionality
-- Ready for Part 2: AI/ML anomaly detection
+### Navigation
+- **Dashboard**: Main overview with statistics
+- **Traffic Monitor**: Bandwidth and protocol analysis
+- **Device Monitor**: Connected devices management
+- **Threat Analysis**: Security alerts and detection
+- **ML Insights**: Model training and performance
+- **Inject Anomaly**: Threat testing capabilities
+
+### ML Training Process
+1. Start monitoring to begin data collection
+2. Wait for 500 samples to complete training
+3. Monitor progress in header and ML Insights
+4. Models automatically train when threshold reached
+
+### Device Monitoring
+- View all connected devices in table format
+- Click devices for detailed information
+- Monitor bandwidth usage per device
+- Track device types and connection status
+
+## Configuration
+
+Edit `config/config.ini` for customization:
+- ML training parameters
+- Network monitoring settings
+- UI preferences
+
+## Troubleshooting
+
+### Common Issues
+1. **Chart not appearing**: Ensure matplotlib is installed
+2. **ML training not starting**: Check if monitoring is active
+3. **Device list empty**: Wait for packet generation
+4. **Performance issues**: Close other applications
+
+### Dependencies
+- CustomTkinter: Modern UI framework
+- Matplotlib: Chart visualization
+- Scikit-learn: ML algorithms
+- NumPy/Pandas: Data processing
+
+## Features
+
+- Real-time network monitoring
+- ML-powered threat detection
+- Professional device tracking
+- Interactive threat testing
+- Bandwidth monitoring
+- Modern UI design

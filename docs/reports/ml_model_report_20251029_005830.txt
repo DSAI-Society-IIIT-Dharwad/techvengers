@@ -1,6 +1,0 @@
-ML Model Training Report
-==================================================
-Generated: 2025-10-29 00:58:30
-Models directory: trained_models
-Batch models: 3
-Streaming models: 3

@@ -43,12 +43,17 @@ class RealTimeMLManager:
         self.is_trained = False
         self.min_samples_for_training = 500
         self.max_training_samples = 2000
+        self.training_progress = 0
+        self.last_training_time = None
         
     def add_training_sample(self, packet_data):
         """Add a packet to training data"""
         features = self.extract_features(packet_data)
         if features is not None:
             self.training_data.append(features.flatten())
+            
+            # Update training progress
+            self.training_progress = min(100, (len(self.training_data) / self.min_samples_for_training) * 100)
             
             # Keep only recent samples
             if len(self.training_data) > self.max_training_samples:
@@ -140,6 +145,7 @@ class RealTimeMLManager:
             self.models['one_class_svm'].fit(X_scaled)
             
             self.is_trained = True
+            self.last_training_time = datetime.now()
             print(f"Real-time ML models trained on {len(self.training_data)} samples (threshold: 500)")
             return True
             
@@ -215,11 +221,13 @@ class RealTimeMLManager:
             'is_trained': self.is_trained,
             'training_samples': len(self.training_data),
             'min_samples_needed': self.min_samples_for_training,
-            'models_available': list(self.models.keys())
+            'models_available': list(self.models.keys()),
+            'training_progress': self.training_progress,
+            'last_training_time': self.last_training_time
         }
 
 class NetworkMonitor:
-    """Simulates network packet monitoring"""
+    """Simulates network packet monitoring with enhanced device tracking"""
     
     def __init__(self, ml_manager, data_queue):
         self.ml_manager = ml_manager
@@ -227,39 +235,68 @@ class NetworkMonitor:
         self.is_monitoring = False
         self.packet_count = 0
         self.device_set = set()
+        self.device_info = {}  # Enhanced device tracking
+        self.connection_stats = {}
+        self.bandwidth_usage = {}
         
     def start_monitoring(self):
         """Start network monitoring"""
         self.is_monitoring = True
         self.packet_count = 0
         self.device_set.clear()
+        self.device_info.clear()
+        self.connection_stats.clear()
+        self.bandwidth_usage.clear()
         
     def stop_monitoring(self):
         """Stop network monitoring"""
         self.is_monitoring = False
         
     def generate_packet(self):
-        """Generate simulated network packet"""
+        """Generate simulated network packet with enhanced device tracking"""
         protocols = ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS']
         sources = [f"192.168.1.{i}" for i in range(1, 255)]
         destinations = [f"10.0.0.{i}" for i in range(1, 255)]
         
+        # Add some external IPs for more realistic simulation
+        external_ips = ['8.8.8.8', '1.1.1.1', '208.67.222.222', '9.9.9.9']
+        destinations.extend(external_ips)
+        
         protocol = random.choice(protocols)
+        source_ip = random.choice(sources)
+        dest_ip = random.choice(destinations)
+        
+        # Generate MAC address for source
+        mac_address = ':'.join([f"{random.randint(0, 255):02x}" for _ in range(6)])
+        
+        # Determine device type based on IP range
+        device_type = self.get_device_type(source_ip)
+        
         packet = {
             'id': self.packet_count,
             'timestamp': datetime.now(),
-            'source': random.choice(sources),
-            'destination': random.choice(destinations),
+            'source': source_ip,
+            'destination': dest_ip,
             'protocol': protocol,
             'port': random.randint(1, 65535),
             'size': random.randint(64, 1500),
             'protocol_num': {'TCP': 1, 'UDP': 2, 'ICMP': 3, 'HTTP': 4, 'HTTPS': 5}[protocol],
-            'flags': random.randint(0, 15)
+            'flags': random.randint(0, 15),
+            'mac_address': mac_address,
+            'device_type': device_type,
+            'connection_status': 'active'
         }
         
         self.packet_count += 1
-        self.device_set.add(packet['source'])
-        self.device_set.add(packet['destination'])
+        self.device_set.add(source_ip)
+        self.device_set.add(dest_ip)
+        
+        # Update device info
+        self.update_device_info(source_ip, packet)
+        self.update_device_info(dest_ip, packet)
+        
+        # Update bandwidth usage
+        self.update_bandwidth_usage(source_ip, packet['size'])
         
         # Add packet to training data
         self.ml_manager.add_training_sample(packet)
@@ -269,6 +306,67 @@ class NetworkMonitor:
             self.ml_manager.train_models()
         
         return packet
+    
+    def get_device_type(self, ip):
+        """Determine device type based on IP address"""
+        if ip.startswith('192.168.1.'):
+            last_octet = int(ip.split('.')[-1])
+            if last_octet < 10:
+                return 'Router/Gateway'
+            elif last_octet < 50:
+                return 'Server'
+            elif last_octet < 100:
+                return 'Desktop'
+            elif last_octet < 150:
+                return 'Laptop'
+            elif last_octet < 200:
+                return 'Mobile Device'
+            else:
+                return 'IoT Device'
+        elif ip.startswith('10.0.0.'):
+            return 'External Server'
+        else:
+            return 'External Device'
+    
+    def update_device_info(self, ip, packet):
+        """Update device information"""
+        if ip not in self.device_info:
+            self.device_info[ip] = {
+                'first_seen': packet['timestamp'],
+                'last_seen': packet['timestamp'],
+                'packet_count': 0,
+                'total_bytes': 0,
+                'protocols': set(),
+                'ports': set(),
+                'device_type': packet.get('device_type', 'Unknown'),
+                'mac_address': packet.get('mac_address', 'Unknown'),
+                'connection_status': 'active'
+            }
+        
+        device = self.device_info[ip]
+        device['last_seen'] = packet['timestamp']
+        device['packet_count'] += 1
+        device['total_bytes'] += packet['size']
+        device['protocols'].add(packet['protocol'])
+        device['ports'].add(packet['port'])
+    
+    def update_bandwidth_usage(self, ip, size):
+        """Update bandwidth usage statistics"""
+        if ip not in self.bandwidth_usage:
+            self.bandwidth_usage[ip] = {
+                'bytes_sent': 0,
+                'bytes_received': 0,
+                'packets_sent': 0,
+                'packets_received': 0
+            }
+        
+        # Simple heuristic: if IP is in local range, it's sending
+        if ip.startswith(('192.168.', '10.', '172.')):
+            self.bandwidth_usage[ip]['bytes_sent'] += size
+            self.bandwidth_usage[ip]['packets_sent'] += 1
+        else:
+            self.bandwidth_usage[ip]['bytes_received'] += size
+            self.bandwidth_usage[ip]['packets_received'] += 1
     
     def monitoring_loop(self):
         """Main monitoring loop"""
@@ -288,7 +386,10 @@ class NetworkMonitor:
                         'total_packets': self.packet_count,
                         'active_devices': len(self.device_set),
                         'alerts': 0,  # Will be updated by GUI
-                        'threats': 0  # Will be updated by GUI
+                        'threats': 0,  # Will be updated by GUI
+                        'device_info': self.device_info,
+                        'bandwidth_usage': self.bandwidth_usage,
+                        'ml_training_status': self.ml_manager.get_training_status()
                     }
                 })
                 
@@ -316,6 +417,7 @@ class NetworkDashboard(ctk.CTk):
         self.alerts = deque(maxlen=100)
         self.devices = {}  # Track devices
         self.threats = deque(maxlen=50)  # Track threats
+        self.bandwidth_data = deque(maxlen=30)  # Bandwidth data for chart
         
         # Animation variables
         self.animation_running = False
@@ -372,24 +474,48 @@ class NetworkDashboard(ctk.CTk):
         header_frame = ctk.CTkFrame(self)
         header_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
         
-        # Title
+        # Title and subtitle
+        title_frame = ctk.CTkFrame(header_frame)
+        title_frame.pack(side="left", padx=20, pady=15, fill="x", expand=True)
+        
         title_label = ctk.CTkLabel(
-            header_frame, 
+            title_frame, 
             text="Network Security Dashboard", 
             font=ctk.CTkFont(size=24, weight="bold")
         )
-        title_label.pack(side="left", padx=20, pady=15)
+        title_label.pack(anchor="w")
+        
+        subtitle_label = ctk.CTkLabel(
+            title_frame,
+            text="Real-time Network Monitoring & Threat Detection",
+            font=ctk.CTkFont(size=12),
+            text_color="gray"
+        )
+        subtitle_label.pack(anchor="w")
+        
+        # Status indicators
+        status_frame = ctk.CTkFrame(header_frame)
+        status_frame.pack(side="right", padx=20, pady=15)
         
         # ML Status
-        ml_status = "Connected" if self.ml_loaded else "Disconnected"
-        ml_color = "green" if self.ml_loaded else "red"
-        ml_label = ctk.CTkLabel(
-            header_frame,
-            text=f"ML Models: {ml_status}",
+        ml_status = "Active" if self.ml_loaded else "Inactive"
+        ml_color = "#2ecc71" if self.ml_loaded else "#e74c3c"
+        self.ml_status_label = ctk.CTkLabel(
+            status_frame,
+            text=f"ML Engine: {ml_status}",
             text_color=ml_color,
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=ctk.CTkFont(size=12, weight="bold")
         )
-        ml_label.pack(side="right", padx=20, pady=15)
+        self.ml_status_label.pack(pady=2)
+        
+        # Training Status
+        self.training_status_label = ctk.CTkLabel(
+            status_frame,
+            text="Training: Collecting Data...",
+            text_color="#f39c12",
+            font=ctk.CTkFont(size=10)
+        )
+        self.training_status_label.pack(pady=2)
         
         # Control buttons
         button_frame = ctk.CTkFrame(header_frame)
@@ -861,10 +987,25 @@ class NetworkDashboard(ctk.CTk):
                     if protocol in self.traffic_stats['protocol_counts']:
                         self.traffic_stats['protocol_counts'][protocol] += 1
                     
-                    # Update bandwidth (simulate)
-                    bandwidth_mbps = packet['size'] / 1024 / 1024 * 8  # Convert to Mbps
-                    self.bandwidth_data.append(bandwidth_mbps)
-                    self.traffic_stats['bandwidth_usage'] += bandwidth_mbps
+                    # Update bandwidth data for chart
+                    if hasattr(self, 'bandwidth_data'):
+                        bandwidth_mbps = packet['size'] / 1024 / 1024 * 8  # Convert to Mbps
+                        self.bandwidth_data.append(bandwidth_mbps)
+                    
+                    # Update training status in header
+                    if hasattr(self, 'training_status_label'):
+                        training_status = self.ml_manager.get_training_status()
+                        if training_status['is_trained']:
+                            self.training_status_label.configure(
+                                text="Training: Complete",
+                                text_color="#2ecc71"
+                            )
+                        else:
+                            progress = training_status['training_progress']
+                            self.training_status_label.configure(
+                                text=f"Training: {progress:.1f}%",
+                                text_color="#f39c12"
+                            )
                     
                     # Check for anomalies using pre-trained models
                     if packet['ml_prediction']['is_anomaly'] and packet['ml_prediction']['confidence'] > 0.7:
@@ -1026,8 +1167,9 @@ class NetworkDashboard(ctk.CTk):
         self.bandwidth_canvas = FigureCanvasTkAgg(self.bandwidth_fig, bandwidth_frame)
         self.bandwidth_canvas.get_tk_widget().grid(row=1, column=0, sticky="nsew")
         
-        # Initialize bandwidth data
-        self.bandwidth_data = deque(maxlen=30)
+        # Add some initial data to make the chart visible
+        for i in range(10):
+            self.bandwidth_data.append(random.uniform(0.1, 2.0))  # Random initial data
         
     def create_protocol_analysis(self, parent):
         """Create protocol analysis chart"""
@@ -1080,21 +1222,145 @@ class NetworkDashboard(ctk.CTk):
         self.traffic_details_listbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
         
     def create_device_list(self, parent):
-        """Create device monitoring list"""
+        """Create enhanced device monitoring list"""
         device_frame = ctk.CTkFrame(parent)
         device_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
         device_frame.grid_columnconfigure(0, weight=1)
         device_frame.grid_rowconfigure(1, weight=1)
         
-        # Device listbox
-        self.device_listbox = tk.Listbox(
-            device_frame,
+        # Device summary cards
+        self.create_device_summary_cards(device_frame)
+        
+        # Device list with enhanced display
+        list_frame = ctk.CTkFrame(device_frame)
+        list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        list_frame.grid_columnconfigure(0, weight=1)
+        list_frame.grid_rowconfigure(0, weight=1)
+        
+        # Create Treeview for better device display
+        columns = ('IP Address', 'Device Type', 'MAC Address', 'Status', 'Packets', 'Bandwidth')
+        self.device_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
+        
+        # Configure columns
+        self.device_tree.heading('IP Address', text='IP Address')
+        self.device_tree.heading('Device Type', text='Device Type')
+        self.device_tree.heading('MAC Address', text='MAC Address')
+        self.device_tree.heading('Status', text='Status')
+        self.device_tree.heading('Packets', text='Packets')
+        self.device_tree.heading('Bandwidth', text='Bandwidth')
+        
+        # Configure column widths
+        self.device_tree.column('IP Address', width=120)
+        self.device_tree.column('Device Type', width=120)
+        self.device_tree.column('MAC Address', width=140)
+        self.device_tree.column('Status', width=80)
+        self.device_tree.column('Packets', width=80)
+        self.device_tree.column('Bandwidth', width=100)
+        
+        # Style the treeview
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('Treeview', background='#2b2b2b', foreground='white', fieldbackground='#2b2b2b')
+        style.configure('Treeview.Heading', background='#1f538d', foreground='white')
+        
+        self.device_tree.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.device_tree.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.device_tree.configure(yscrollcommand=scrollbar.set)
+        
+        # Device details frame
+        details_frame = ctk.CTkFrame(device_frame)
+        details_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=10)
+        
+        details_label = ctk.CTkLabel(details_frame, text="Device Details", font=ctk.CTkFont(size=14, weight="bold"))
+        details_label.pack(pady=10)
+        
+        self.device_details_text = tk.Text(
+            details_frame,
             bg='#2b2b2b',
             fg='white',
-            selectbackground='#1f538d',
-            font=('Consolas', 11)
+            font=('Consolas', 10),
+            wrap=tk.WORD,
+            height=6
         )
-        self.device_listbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        self.device_details_text.pack(fill="x", padx=10, pady=(0, 10))
+        
+        # Bind selection event
+        self.device_tree.bind('<<TreeviewSelect>>', self.on_device_select)
+    
+    def create_device_summary_cards(self, parent):
+        """Create device summary cards"""
+        summary_frame = ctk.CTkFrame(parent)
+        summary_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+        summary_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        
+        # Device summary cards
+        self.device_cards = {}
+        device_info = [
+            ("Total Devices", "total_devices", "#3498db", "📱"),
+            ("Active Devices", "active_devices", "#2ecc71", "🟢"),
+            ("External Devices", "external_devices", "#f39c12", "🌐"),
+            ("Bandwidth Usage", "bandwidth_usage", "#9b59b6", "📊")
+        ]
+        
+        for i, (title, key, color, icon) in enumerate(device_info):
+            card = ctk.CTkFrame(summary_frame)
+            card.grid(row=0, column=i, sticky="ew", padx=5, pady=10)
+            
+            # Icon
+            icon_label = ctk.CTkLabel(card, text=icon, font=ctk.CTkFont(size=20))
+            icon_label.pack(pady=(10, 5))
+            
+            # Title
+            title_label = ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=12))
+            title_label.pack(pady=(0, 5))
+            
+            # Value
+            value_label = ctk.CTkLabel(
+                card, 
+                text="0", 
+                font=ctk.CTkFont(size=18, weight="bold"),
+                text_color=color
+            )
+            value_label.pack(pady=(0, 10))
+            
+            self.device_cards[key] = value_label
+    
+    def on_device_select(self, event):
+        """Handle device selection"""
+        selection = self.device_tree.selection()
+        if selection:
+            item = self.device_tree.item(selection[0])
+            ip_address = item['values'][0]
+            
+            # Get device details from network monitor
+            if hasattr(self.network_monitor, 'device_info') and ip_address in self.network_monitor.device_info:
+                device_info = self.network_monitor.device_info[ip_address]
+                bandwidth_info = self.network_monitor.bandwidth_usage.get(ip_address, {})
+                
+                details = f"""
+Device Information:
+IP Address: {ip_address}
+Device Type: {device_info.get('device_type', 'Unknown')}
+MAC Address: {device_info.get('mac_address', 'Unknown')}
+First Seen: {device_info.get('first_seen', 'Unknown')}
+Last Seen: {device_info.get('last_seen', 'Unknown')}
+Packet Count: {device_info.get('packet_count', 0)}
+Total Bytes: {device_info.get('total_bytes', 0)}
+Protocols Used: {', '.join(device_info.get('protocols', set()))}
+Ports Used: {', '.join(map(str, list(device_info.get('ports', set()))[:10]))}
+
+Bandwidth Usage:
+Bytes Sent: {bandwidth_info.get('bytes_sent', 0)}
+Bytes Received: {bandwidth_info.get('bytes_received', 0)}
+Packets Sent: {bandwidth_info.get('packets_sent', 0)}
+Packets Received: {bandwidth_info.get('packets_received', 0)}
+                """
+                
+                self.device_details_text.delete(1.0, tk.END)
+                self.device_details_text.insert(1.0, details.strip())
         
     def create_threat_analysis(self, parent):
         """Create threat analysis panel"""
@@ -1319,10 +1585,16 @@ class NetworkDashboard(ctk.CTk):
         """Update traffic monitoring page"""
         try:
             # Update bandwidth chart
-            if hasattr(self, 'bandwidth_data') and hasattr(self, 'bandwidth_ax') and len(self.bandwidth_data) > 0:
+            if hasattr(self, 'bandwidth_data') and hasattr(self, 'bandwidth_ax'):
                 self.bandwidth_ax.clear()
-                self.bandwidth_ax.plot(range(len(self.bandwidth_data)), list(self.bandwidth_data), 
-                                     color='#2ecc71', linewidth=2, marker='o', markersize=3)
+                if len(self.bandwidth_data) > 0:
+                    self.bandwidth_ax.plot(range(len(self.bandwidth_data)), list(self.bandwidth_data), 
+                                         color='#2ecc71', linewidth=2, marker='o', markersize=3)
+                else:
+                    # Show placeholder when no data
+                    self.bandwidth_ax.text(0.5, 0.5, 'Collecting Data...', ha='center', va='center', 
+                                         color='white', fontsize=14, transform=self.bandwidth_ax.transAxes)
+                
                 self.bandwidth_ax.set_title('Bandwidth Over Time', color='white', fontsize=12)
                 self.bandwidth_ax.set_facecolor('#2b2b2b')
                 self.bandwidth_ax.tick_params(colors='white')
@@ -1364,19 +1636,57 @@ class NetworkDashboard(ctk.CTk):
             print(f"Error updating traffic page: {e}")
     
     def update_devices_page(self):
-        """Update device monitoring page"""
+        """Update enhanced device monitoring page"""
         try:
-            if hasattr(self, 'device_listbox'):
-                self.device_listbox.delete(0, tk.END)
+            if hasattr(self, 'device_tree'):
+                # Clear existing items
+                for item in self.device_tree.get_children():
+                    self.device_tree.delete(item)
+                
+                # Get device info from network monitor
+                device_info = getattr(self.network_monitor, 'device_info', {})
+                bandwidth_info = getattr(self.network_monitor, 'bandwidth_usage', {})
                 
                 # Sort devices by packet count
-                sorted_devices = sorted(self.devices.items(), 
-                                      key=lambda x: x[1]['packet_count'], reverse=True)
+                sorted_devices = sorted(device_info.items(), 
+                                      key=lambda x: x[1].get('packet_count', 0), reverse=True)
                 
+                total_devices = len(device_info)
+                active_devices = sum(1 for info in device_info.values() 
+                                   if info.get('connection_status') == 'active')
+                external_devices = sum(1 for ip in device_info.keys() 
+                                     if not ip.startswith(('192.168.', '10.', '172.')))
+                
+                # Calculate total bandwidth
+                total_bandwidth = sum(
+                    bw.get('bytes_sent', 0) + bw.get('bytes_received', 0) 
+                    for bw in bandwidth_info.values()
+                )
+                
+                # Update summary cards
+                if hasattr(self, 'device_cards'):
+                    self.device_cards['total_devices'].configure(text=str(total_devices))
+                    self.device_cards['active_devices'].configure(text=str(active_devices))
+                    self.device_cards['external_devices'].configure(text=str(external_devices))
+                    self.device_cards['bandwidth_usage'].configure(text=f"{total_bandwidth // 1024} KB")
+                
+                # Add devices to tree
                 for ip, info in sorted_devices:
-                    protocols_str = ', '.join(info['protocols'])
-                    device_info = f"{ip} | Packets: {info['packet_count']} | Protocols: {protocols_str} | Last seen: {info['last_seen'].strftime('%H:%M:%S')}"
-                    self.device_listbox.insert(tk.END, device_info)
+                    bandwidth = bandwidth_info.get(ip, {})
+                    total_bytes = bandwidth.get('bytes_sent', 0) + bandwidth.get('bytes_received', 0)
+                    bandwidth_str = f"{total_bytes // 1024} KB" if total_bytes > 0 else "0 KB"
+                    
+                    # Determine status color
+                    status = "Active" if info.get('connection_status') == 'active' else "Inactive"
+                    
+                    self.device_tree.insert('', 'end', values=(
+                        ip,
+                        info.get('device_type', 'Unknown'),
+                        info.get('mac_address', 'Unknown'),
+                        status,
+                        info.get('packet_count', 0),
+                        bandwidth_str
+                    ))
                     
         except Exception as e:
             print(f"Error updating devices page: {e}")
@@ -1481,13 +1791,23 @@ class NetworkDashboard(ctk.CTk):
                 insights = []
                 insights.append("=== ML MODEL INSIGHTS ===\n")
                 
+                # Get training status
+                training_status = self.ml_manager.get_training_status()
+                
                 # Model status
                 if self.ml_loaded:
-                    insights.append("ML Models: Loaded and Active")
+                    insights.append("ML Engine: Active and Ready")
                     insights.append(f"Available Models: {len(self.ml_manager.models)}")
                     insights.append(f"Models: {', '.join(self.ml_manager.models.keys())}")
                 else:
-                    insights.append("ML Models: Not Loaded")
+                    insights.append("ML Engine: Not Loaded")
+                
+                insights.append(f"\nTraining Status: {'Trained' if training_status['is_trained'] else 'Training'}")
+                insights.append(f"Training Samples: {training_status['training_samples']}/{training_status['min_samples_needed']}")
+                insights.append(f"Training Progress: {training_status['training_progress']:.1f}%")
+                
+                if training_status['last_training_time']:
+                    insights.append(f"Last Training: {training_status['last_training_time'].strftime('%H:%M:%S')}")
                 
                 insights.append("\n=== RECENT PREDICTIONS ===\n")
                 
@@ -1529,14 +1849,10 @@ class NetworkDashboard(ctk.CTk):
                 # Insert insights
                 self.ml_insights_text.insert(tk.END, '\n'.join(insights))
                 
-                # Update progress bar based on activity
+                # Update progress bar based on training progress
                 if hasattr(self, 'ml_progress_bar'):
-                    if recent_packets:
-                        # Simulate ML activity based on packet processing
-                        activity_level = min(len(recent_packets) / 10.0, 1.0)
-                        self.ml_progress_bar.set(activity_level)
-                    else:
-                        self.ml_progress_bar.set(0.0)
+                    progress = training_status['training_progress'] / 100
+                    self.ml_progress_bar.set(progress)
                 
         except Exception as e:
             print(f"Error updating ML insights page: {e}")
