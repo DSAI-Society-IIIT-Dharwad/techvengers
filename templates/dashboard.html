@@ -382,7 +382,7 @@
                 <button class="btn btn-success" id="startBtn" onclick="startMonitoring()">
                     <i class="fas fa-play"></i> Start Monitoring
                 </button>
-                <button class="btn btn-danger" id="stopBtn" onclick="stopMonitoring()" disabled>
+                <button class="btn btn-danger" id="stopBtn" onclick="stopMonitoring()" style="display: none;">
                     <i class="fas fa-stop"></i> Stop Monitoring
                 </button>
             </div>
@@ -687,6 +687,11 @@
             updateBandwidthChart(data.packet);
         });
         
+        socket.on('training_complete', function(data) {
+            // Show completion notification
+            showTrainingCompleteModal(data);
+        });
+        
         socket.on('connect', function() {
             console.log('Connected to server');
             loadInitialData();
@@ -713,8 +718,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'started') {
-                        document.getElementById('startBtn').disabled = true;
-                        document.getElementById('stopBtn').disabled = false;
+                        document.getElementById('startBtn').style.display = 'none';
+                        document.getElementById('stopBtn').style.display = 'inline-block';
                     }
                 });
         }
@@ -724,10 +729,73 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'stopped') {
-                        document.getElementById('startBtn').disabled = false;
-                        document.getElementById('stopBtn').disabled = true;
+                        document.getElementById('startBtn').style.display = 'inline-block';
+                        document.getElementById('stopBtn').style.display = 'none';
                     }
                 });
+        }
+        
+        function showTrainingCompleteModal(data) {
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            // Create modal content
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                padding: 30px;
+                border-radius: 15px;
+                text-align: center;
+                max-width: 500px;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            `;
+            
+            modalContent.innerHTML = `
+                <h2 style="color: #00ff88; margin-bottom: 20px;">
+                    <i class="fas fa-check-circle"></i> Training Complete!
+                </h2>
+                <p style="margin-bottom: 20px; color: #b0c4de;">
+                    ${data.message}
+                </p>
+                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                    <p><strong>Training Samples:</strong> ${data.training_samples}</p>
+                    <p><strong>Models Available:</strong> ${data.models_available}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove(); restartMonitoring();" 
+                        style="background: #00ff88; color: #1e3c72; border: none; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; margin-right: 10px;">
+                    <i class="fas fa-redo"></i> Restart Monitoring
+                </button>
+                <button onclick="this.parentElement.parentElement.remove();" 
+                        style="background: #ff4757; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            `;
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+        }
+        
+        function restartMonitoring() {
+            // Stop current monitoring
+            stopMonitoring();
+            // Reset training data
+            fetch('/api/reset_training', { method: 'POST' });
+            // Wait a moment then start again
+            setTimeout(() => {
+                startMonitoring();
+            }, 1000);
         }
         
         function injectThreat(type) {

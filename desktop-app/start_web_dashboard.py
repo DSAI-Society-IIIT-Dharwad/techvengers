@@ -19,7 +19,7 @@ def main():
     print("Starting real-time monitoring...")
     print()
     print("Features available:")
-    print("- Real-time network monitoring")
+    print("- Real-time network packet capture from WiFi")
     print("- ML-powered threat detection (500+ sample training)")
     print("- Enhanced device tracking with MAC addresses")
     print("- Professional device monitoring dashboard")

@@ -22,19 +22,83 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Import real packet sniffer
+try:
+    from real_packet_sniffer import RealPacketSniffer
+    REAL_PACKET_CAPTURE_AVAILABLE = True
+except ImportError as e:
+    print(f"Real packet capture not available: {e}")
+    REAL_PACKET_CAPTURE_AVAILABLE = False
+
 # ML Manager (simplified for web)
 class WebMLManager:
-    """Web-optimized ML model manager"""
+    """Web-optimized ML model manager with persistent data"""
     
     def __init__(self):
         self.models = {}
         self.scalers = {}
         self.training_data = []
         self.is_trained = False
-        self.min_samples_for_training = 500
+        self.min_samples_for_training = 50  # Reduced for faster ML training with real packets
         self.max_training_samples = 2000
         self.training_progress = 0
         self.last_training_time = None
+        
+        # Load persistent data
+        self.load_persistent_data()
+        
+    def save_persistent_data(self):
+        """Save training data to prevent loss on restart"""
+        try:
+            import pickle
+            import os
+            
+            # Create data directory if it doesn't exist
+            data_dir = '../data'
+            if not os.path.exists(data_dir):
+                os.makedirs(data_dir)
+            
+            # Save training data
+            persistent_data = {
+                'training_data': self.training_data,
+                'is_trained': self.is_trained,
+                'training_progress': self.training_progress,
+                'last_training_time': self.last_training_time,
+                'min_samples_for_training': self.min_samples_for_training
+            }
+            
+            with open(f'{data_dir}/web_ml_data.pkl', 'wb') as f:
+                pickle.dump(persistent_data, f)
+                
+        except Exception as e:
+            print(f"Error saving persistent data: {e}")
+    
+    def load_persistent_data(self):
+        """Load training data from previous sessions"""
+        try:
+            import pickle
+            import os
+            
+            data_file = '../data/web_ml_data.pkl'
+            if os.path.exists(data_file):
+                with open(data_file, 'rb') as f:
+                    persistent_data = pickle.load(f)
+                
+                self.training_data = persistent_data.get('training_data', [])
+                self.is_trained = persistent_data.get('is_trained', False)
+                self.training_progress = persistent_data.get('training_progress', 0)
+                self.last_training_time = persistent_data.get('last_training_time', None)
+                
+                print(f"Loaded persistent ML data: {len(self.training_data)} samples, trained: {self.is_trained}")
+            else:
+                print("No persistent ML data found, starting fresh")
+                
+        except Exception as e:
+            print(f"Error loading persistent data: {e}")
+            self.training_data = []
+            self.is_trained = False
+            self.training_progress = 0
+            self.last_training_time = None
         
     def add_training_sample(self, packet_data):
         """Add a packet to training data"""
@@ -43,49 +107,74 @@ class WebMLManager:
             self.training_data.append(features.flatten())
             self.training_progress = min(100, (len(self.training_data) / self.min_samples_for_training) * 100)
             
+            # Debug output for ML training progress
+            if len(self.training_data) % 10 == 0:  # Print every 10 samples
+                print(f"ML Training Progress: {len(self.training_data)}/{self.min_samples_for_training} samples ({self.training_progress:.1f}%)")
+            
             if len(self.training_data) > self.max_training_samples:
                 self.training_data = self.training_data[-self.max_training_samples:]
+            
+            # Save data every 25 samples to prevent loss
+            if len(self.training_data) % 25 == 0:
+                self.save_persistent_data()
     
     def extract_features(self, packet_data):
-        """Extract features from packet data"""
+        """Extract features from real packet data"""
         try:
             features = []
+            
+            # Basic packet features
             features.append(packet_data.get('size', 0))
-            features.append(packet_data.get('port', 0))
+            features.append(packet_data.get('src_port', 0))
             
-            protocol_map = {'TCP': 1, 'UDP': 2, 'ICMP': 3, 'HTTP': 4, 'HTTPS': 5}
-            protocol = packet_data.get('protocol', 'TCP')
-            features.append(protocol_map.get(protocol, 1))
+            # Protocol mapping for real packets
+            protocol_map = {'TCP': 1, 'UDP': 2, 'ICMP': 3, 'ARP': 4, 'Unknown': 5}
+            protocol = packet_data.get('protocol_name', 'Unknown')
+            features.append(protocol_map.get(protocol, 5))
             
-            source_ip = packet_data.get('source', '192.168.1.1')
-            dest_ip = packet_data.get('destination', '192.168.1.1')
+            # IP address analysis
+            source_ip = packet_data.get('source', '0.0.0.0')
+            dest_ip = packet_data.get('destination', '0.0.0.0')
             
-            source_internal = 1 if source_ip.startswith(('192.168.', '10.', '172.')) else 0
-            dest_internal = 1 if dest_ip.startswith(('192.168.', '10.', '172.')) else 0
+            # Check if IPs are internal (private) or external
+            source_internal = 1 if self.is_internal_ip(source_ip) else 0
+            dest_internal = 1 if self.is_internal_ip(dest_ip) else 0
             features.extend([source_internal, dest_internal])
             
-            port = packet_data.get('port', 0)
+            # Port analysis
+            port = packet_data.get('src_port', 0)
             features.extend([
-                1 if port < 1024 else 0,
-                1 if 1024 <= port < 49152 else 0,
-                1 if port >= 49152 else 0
+                1 if port < 1024 else 0,  # Well-known ports
+                1 if 1024 <= port < 49152 else 0,  # Registered ports
+                1 if port >= 49152 else 0  # Dynamic/private ports
             ])
             
+            # Packet size analysis
             size = packet_data.get('size', 0)
             features.extend([
-                1 if size < 64 else 0,
-                1 if 64 <= size < 512 else 0,
-                1 if size >= 512 else 0
+                1 if size < 64 else 0,  # Small packets
+                1 if 64 <= size < 512 else 0,  # Medium packets
+                1 if size >= 512 else 0  # Large packets
             ])
             
+            # Ensure we have exactly 10 features
             while len(features) < 10:
                 features.append(0)
                 
             return np.array(features[:10]).reshape(1, -1)
             
         except Exception as e:
-            print(f"Error extracting features: {e}")
+            print(f"Error extracting features from real packet: {e}")
             return np.zeros((1, 10))
+    
+    def is_internal_ip(self, ip):
+        """Check if IP address is internal/private"""
+        try:
+            if ip.startswith(('192.168.', '10.', '172.')):
+                return True
+            return False
+        except:
+            return False
     
     def train_models(self):
         """Train ML models on collected data"""
@@ -115,6 +204,10 @@ class WebMLManager:
             self.is_trained = True
             self.last_training_time = datetime.now()
             print(f"Web ML models trained on {len(self.training_data)} samples")
+            
+            # Save persistent data after training
+            self.save_persistent_data()
+            
             return True
             
         except Exception as e:
@@ -187,9 +280,9 @@ class WebMLManager:
             'last_training_time': self.last_training_time
         }
 
-# Network Monitor (simplified for web)
-class WebNetworkMonitor:
-    """Web-optimized network packet monitoring"""
+# Network Monitor (Real Packet Capture)
+class RealNetworkMonitor:
+    """Real network monitoring using actual packet capture"""
     
     def __init__(self, ml_manager):
         self.ml_manager = ml_manager
@@ -202,20 +295,93 @@ class WebNetworkMonitor:
         self.alerts = deque(maxlen=100)
         self.threats = deque(maxlen=50)
         
+        # Initialize packet sniffer if available
+        if REAL_PACKET_CAPTURE_AVAILABLE:
+            try:
+                self.packet_sniffer = RealPacketSniffer()
+                # Always try to use real packet capture since Npcap is installed
+                self.use_real_capture = True
+                print("Real packet capture initialized successfully!")
+                print("Npcap detected - will use real WiFi packet capture")
+            except Exception as e:
+                print(f"Failed to initialize real packet capture: {e}")
+                self.packet_sniffer = None
+                self.use_real_capture = False
+        else:
+            self.packet_sniffer = None
+            self.use_real_capture = False
+            print("Using simulated packet generation (real capture not available)")
+        
     def start_monitoring(self):
-        """Start network monitoring"""
+        """Start network monitoring (real or simulated)"""
         self.is_monitoring = True
         self.packet_count = 0
         self.device_set.clear()
         self.device_info.clear()
         self.bandwidth_usage.clear()
         
+        if self.use_real_capture and self.packet_sniffer:
+            # Start real packet sniffing
+            success = self.packet_sniffer.start_sniffing()
+            if success:
+                print("Real packet capture started successfully!")
+            else:
+                print("Failed to start real packet capture! Falling back to simulation.")
+                self.use_real_capture = False
+        else:
+            print("Starting simulated packet generation...")
+        
     def stop_monitoring(self):
         """Stop network monitoring"""
         self.is_monitoring = False
+        if self.use_real_capture and self.packet_sniffer:
+            self.packet_sniffer.stop_sniffing()
+        print("Network monitoring stopped")
         
-    def generate_packet(self):
-        """Generate simulated network packet"""
+    def get_latest_packet(self):
+        """Get the latest captured packet (real or simulated)"""
+        if not self.is_monitoring:
+            return None
+            
+        if self.use_real_capture and self.packet_sniffer:
+            # Get recent packets from real sniffer
+            recent_packets = self.packet_sniffer.get_packet_data()
+            if recent_packets:
+                # Return the most recent packet
+                latest_packet = recent_packets[-1]
+                
+                # Update our local tracking
+                self.packet_count = self.packet_sniffer.packet_count
+                self.device_info = self.packet_sniffer.get_device_data()
+                self.bandwidth_usage = self.packet_sniffer.get_bandwidth_data()
+                
+                # Add to device set
+                if 'source' in latest_packet:
+                    self.device_set.add(latest_packet['source'])
+                if 'destination' in latest_packet:
+                    self.device_set.add(latest_packet['destination'])
+                
+                # Add to ML training
+                self.ml_manager.add_training_sample(latest_packet)
+                
+                # Train models if enough samples
+                if len(self.ml_manager.training_data) >= self.ml_manager.min_samples_for_training and not self.ml_manager.is_trained:
+                    self.ml_manager.train_models()
+                
+                print(f"Real packet captured: {latest_packet.get('source', 'Unknown')} -> {latest_packet.get('destination', 'Unknown')} ({latest_packet.get('protocol_name', 'Unknown')})")
+                return latest_packet
+            else:
+                # No real packets available yet, wait a bit
+                print("Waiting for real packets...")
+                return None
+        else:
+            # Generate simulated packet
+            return self.generate_simulated_packet()
+        
+        return None
+    
+    def generate_simulated_packet(self):
+        """Generate simulated network packet (fallback)"""
         protocols = ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS']
         sources = [f"192.168.1.{i}" for i in range(1, 255)]
         destinations = [f"10.0.0.{i}" for i in range(1, 255)]
@@ -234,12 +400,10 @@ class WebNetworkMonitor:
             'timestamp': datetime.now(),
             'source': source_ip,
             'destination': dest_ip,
-            'protocol': protocol,
-            'port': random.randint(1, 65535),
+            'protocol_name': protocol,
+            'src_port': random.randint(1, 65535),
             'size': random.randint(64, 1500),
-            'protocol_num': {'TCP': 1, 'UDP': 2, 'ICMP': 3, 'HTTP': 4, 'HTTPS': 5}[protocol],
-            'flags': random.randint(0, 15),
-            'mac_address': mac_address,
+            'src_mac': mac_address,
             'device_type': device_type,
             'connection_status': 'active'
         }
@@ -248,85 +412,86 @@ class WebNetworkMonitor:
         self.device_set.add(source_ip)
         self.device_set.add(dest_ip)
         
+        # Update device info
         self.update_device_info(source_ip, packet)
         self.update_device_info(dest_ip, packet)
-        self.update_bandwidth_usage(source_ip, packet['size'])
         
+        # Add to ML training
         self.ml_manager.add_training_sample(packet)
         
+        # Train models if enough samples
         if len(self.ml_manager.training_data) >= self.ml_manager.min_samples_for_training and not self.ml_manager.is_trained:
             self.ml_manager.train_models()
         
+        print(f"Generated simulated packet #{self.packet_count}: {source_ip} -> {dest_ip} ({protocol})")
         return packet
     
+    def generate_packet(self):
+        """Get latest real packet (for compatibility)"""
+        return self.get_latest_packet()
+    
     def get_device_type(self, ip):
-        """Determine device type based on IP address"""
-        if ip.startswith('192.168.1.'):
-            last_octet = int(ip.split('.')[-1])
-            if last_octet < 10:
-                return 'Router/Gateway'
-            elif last_octet < 50:
-                return 'Server'
-            elif last_octet < 100:
-                return 'Desktop'
-            elif last_octet < 150:
-                return 'Laptop'
-            elif last_octet < 200:
-                return 'Mobile Device'
-            else:
-                return 'IoT Device'
-        elif ip.startswith('10.0.0.'):
-            return 'External Server'
+        """Get device type from packet sniffer or use fallback logic"""
+        if self.use_real_capture and self.packet_sniffer:
+            return self.packet_sniffer.get_device_type(ip)
         else:
-            return 'External Device'
+            # Fallback device type logic
+            if ip.startswith('192.168.1.'):
+                last_octet = int(ip.split('.')[-1])
+                if last_octet < 10:
+                    return 'Router/Gateway'
+                elif last_octet < 50:
+                    return 'Server'
+                elif last_octet < 100:
+                    return 'Desktop'
+                elif last_octet < 150:
+                    return 'Laptop'
+                elif last_octet < 200:
+                    return 'Mobile Device'
+                else:
+                    return 'IoT Device'
+            elif ip.startswith('10.0.0.'):
+                return 'External Server'
+            else:
+                return 'External Device'
     
     def update_device_info(self, ip, packet):
         """Update device information"""
-        if ip not in self.device_info:
-            self.device_info[ip] = {
-                'first_seen': packet['timestamp'],
-                'last_seen': packet['timestamp'],
-                'packet_count': 0,
-                'total_bytes': 0,
-                'protocols': set(),
-                'ports': set(),
-                'device_type': packet.get('device_type', 'Unknown'),
-                'mac_address': packet.get('mac_address', 'Unknown'),
-                'connection_status': 'active'
-            }
-        
-        device = self.device_info[ip]
-        device['last_seen'] = packet['timestamp']
-        device['packet_count'] += 1
-        device['total_bytes'] += packet['size']
-        device['protocols'].add(packet['protocol'])
-        device['ports'].add(packet['port'])
+        if not self.use_real_capture:
+            # Handle device info for simulated packets
+            if ip not in self.device_info:
+                self.device_info[ip] = {
+                    'first_seen': packet['timestamp'],
+                    'last_seen': packet['timestamp'],
+                    'packet_count': 0,
+                    'total_bytes': 0,
+                    'protocols': set(),
+                    'ports': set(),
+                    'device_type': packet.get('device_type', 'Unknown'),
+                    'mac_address': packet.get('src_mac', 'Unknown'),
+                    'connection_status': 'active'
+                }
+            
+            device = self.device_info[ip]
+            device['last_seen'] = packet['timestamp']
+            device['packet_count'] += 1
+            device['total_bytes'] += packet['size']
+            device['protocols'].add(packet['protocol_name'])
+            device['ports'].add(packet['src_port'])
     
     def update_bandwidth_usage(self, ip, size):
-        """Update bandwidth usage statistics"""
-        if ip not in self.bandwidth_usage:
-            self.bandwidth_usage[ip] = {
-                'bytes_sent': 0,
-                'bytes_received': 0,
-                'packets_sent': 0,
-                'packets_received': 0
-            }
-        
-        if ip.startswith(('192.168.', '10.', '172.')):
-            self.bandwidth_usage[ip]['bytes_sent'] += size
-            self.bandwidth_usage[ip]['packets_sent'] += 1
-        else:
-            self.bandwidth_usage[ip]['bytes_received'] += size
-            self.bandwidth_usage[ip]['packets_received'] += 1
+        """Update bandwidth usage"""
+        # This is handled by the packet sniffer
+        pass
 
 # Flask Application
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.config['SECRET_KEY'] = 'network_security_dashboard_2024'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global instances
 ml_manager = WebMLManager()
-network_monitor = WebNetworkMonitor(ml_manager)
+network_monitor = RealNetworkMonitor(ml_manager)
 
 # Monitoring thread
 monitoring_thread = None
@@ -337,64 +502,76 @@ def monitoring_loop():
     global monitoring_active
     while monitoring_active:
         if network_monitor.is_monitoring:
-            packet = network_monitor.generate_packet()
+            packet = network_monitor.get_latest_packet()
             
-            # Get ML prediction
-            ml_prediction = ml_manager.predict_anomaly(packet)
-            packet['ml_prediction'] = ml_prediction
-            
-            # Add to data storage
-            network_monitor.packets.append(packet)
-            
-            # Check for anomalies
-            if packet['ml_prediction']['is_anomaly'] and packet['ml_prediction']['confidence'] > 0.7:
-                alert = {
-                    'timestamp': packet['timestamp'],
-                    'type': 'ML Anomaly Detected',
-                    'severity': 'High' if packet['ml_prediction']['confidence'] > 0.9 else 'Medium',
-                    'description': f"Anomalous packet detected ({packet['ml_prediction']['confidence']:.1%} confidence)",
-                    'source': packet['source'],
-                    'destination': packet['destination'],
-                    'protocol': packet['protocol'],
-                    'confidence': packet['ml_prediction']['confidence']
-                }
-                network_monitor.alerts.append(alert)
+            if packet:
+                print(f"Generated packet: {packet['source']} -> {packet['destination']} ({packet['protocol_name']})")
+                # Get ML prediction
+                ml_prediction = ml_manager.predict_anomaly(packet)
+                packet['ml_prediction'] = ml_prediction
                 
-                if packet['ml_prediction']['confidence'] > 0.8:
-                    threat = {
+                # Add to data storage
+                network_monitor.packets.append(packet)
+                
+                # Check for anomalies
+                if packet['ml_prediction']['is_anomaly'] and packet['ml_prediction']['confidence'] > 0.7:
+                    alert = {
                         'timestamp': packet['timestamp'],
-                        'type': 'High Confidence Threat',
-                        'source': packet['source'],
-                        'destination': packet['destination'],
-                        'confidence': packet['ml_prediction']['confidence'],
-                        'description': f"High-risk anomaly detected by ML models"
+                        'type': 'ML Anomaly Detected',
+                        'severity': 'High' if packet['ml_prediction']['confidence'] > 0.9 else 'Medium',
+                        'description': f"Anomalous packet detected ({packet['ml_prediction']['confidence']:.1%} confidence)",
+                        'source': packet.get('source', 'Unknown'),
+                        'destination': packet.get('destination', 'Unknown'),
+                        'protocol': packet.get('protocol_name', 'Unknown'),
+                        'confidence': packet['ml_prediction']['confidence']
                     }
-                    network_monitor.threats.append(threat)
+                    network_monitor.alerts.append(alert)
+                    
+                    if packet['ml_prediction']['confidence'] > 0.8:
+                        threat = {
+                            'timestamp': packet['timestamp'],
+                            'type': 'High Confidence Threat',
+                            'source': packet.get('source', 'Unknown'),
+                            'destination': packet.get('destination', 'Unknown'),
+                            'confidence': packet['ml_prediction']['confidence'],
+                            'description': f"High-risk anomaly detected by ML models"
+                        }
+                        network_monitor.threats.append(threat)
+                
+                # Check if training is complete and ask user to restart
+                training_status = ml_manager.get_training_status()
+                if training_status['training_progress'] >= 100 and training_status['is_trained']:
+                    # Emit completion notification
+                    socketio.emit('training_complete', {
+                        'message': 'ML training completed! Please restart monitoring to continue with fresh data.',
+                        'training_samples': training_status['training_samples'],
+                        'models_available': training_status['models_available']
+                    })
+                
+                # Emit real-time data to web clients
+                socketio.emit('packet_data', {
+                    'packet': {
+                        'id': packet['id'],
+                        'timestamp': packet['timestamp'].isoformat(),
+                        'source': packet.get('source', 'Unknown'),
+                        'destination': packet.get('destination', 'Unknown'),
+                        'protocol': packet.get('protocol_name', 'Unknown'),
+                        'port': packet.get('src_port', 0),
+                        'size': packet['size'],
+                        'device_type': packet.get('device_type', 'Unknown'),
+                        'mac_address': packet.get('src_mac', 'Unknown')
+                    },
+                    'ml_prediction': packet['ml_prediction'],
+                    'stats': {
+                        'total_packets': network_monitor.packet_count,
+                        'active_devices': len(network_monitor.device_set),
+                        'alerts': len(network_monitor.alerts),
+                        'threats': len(network_monitor.threats),
+                        'training_status': training_status
+                    }
+                })
             
-            # Emit real-time data to web clients
-            socketio.emit('packet_data', {
-                'packet': {
-                    'id': packet['id'],
-                    'timestamp': packet['timestamp'].isoformat(),
-                    'source': packet['source'],
-                    'destination': packet['destination'],
-                    'protocol': packet['protocol'],
-                    'port': packet['port'],
-                    'size': packet['size'],
-                    'device_type': packet['device_type'],
-                    'mac_address': packet['mac_address']
-                },
-                'ml_prediction': packet['ml_prediction'],
-                'stats': {
-                    'total_packets': network_monitor.packet_count,
-                    'active_devices': len(network_monitor.device_set),
-                    'alerts': len(network_monitor.alerts),
-                    'threats': len(network_monitor.threats),
-                    'training_status': ml_manager.get_training_status()
-                }
-            })
-            
-            time.sleep(0.5)
+            time.sleep(0.1)  # Check for new packets more frequently
         else:
             time.sleep(1)
 
@@ -505,6 +682,26 @@ def stop_monitoring():
     else:
         return jsonify({'status': 'not_running', 'message': 'Monitoring is not active'})
 
+@app.route('/api/reset_training', methods=['POST'])
+def reset_training():
+    """Reset ML training data"""
+    ml_manager.training_data.clear()
+    ml_manager.is_trained = False
+    ml_manager.training_progress = 0
+    ml_manager.last_training_time = None
+    
+    # Clear persistent data file
+    try:
+        import os
+        data_file = '../data/web_ml_data.pkl'
+        if os.path.exists(data_file):
+            os.remove(data_file)
+            print("Persistent ML data file removed")
+    except Exception as e:
+        print(f"Error removing persistent data file: {e}")
+    
+    return jsonify({'status': 'reset', 'message': 'Training data reset successfully'})
+
 @app.route('/api/inject_threat', methods=['POST'])
 def inject_threat():
     """Inject a test threat"""
@@ -543,4 +740,5 @@ def inject_threat():
 if __name__ == '__main__':
     print("Starting Network Security Web Dashboard...")
     print("Web interface will be available at: http://localhost:5000")
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    print("Note: Disable debug mode for production to prevent auto-restarts")
+    socketio.run(app, debug=False, host='0.0.0.0', port=5000)
