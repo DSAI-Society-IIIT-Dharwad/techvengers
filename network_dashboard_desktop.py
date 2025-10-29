@@ -439,7 +439,8 @@ class NetworkDashboard(ctk.CTk):
             ("Traffic Monitor", "traffic"),
             ("Device Monitor", "devices"),
             ("Threat Analysis", "threats"),
-            ("ML Insights", "ml_insights")
+            ("ML Insights", "ml_insights"),
+            ("Inject Anomaly", "inject")
         ]
         
         for i, (label, page_id) in enumerate(pages):
@@ -482,6 +483,8 @@ class NetworkDashboard(ctk.CTk):
                 self.threats_frame.grid(row=0, column=0, sticky="nsew")
             elif page_id == "ml_insights" and hasattr(self, 'ml_insights_frame'):
                 self.ml_insights_frame.grid(row=0, column=0, sticky="nsew")
+            elif page_id == "inject" and hasattr(self, 'inject_frame'):
+                self.inject_frame.grid(row=0, column=0, sticky="nsew")
         except Exception as e:
             print(f"Error switching to page {page_id}: {e}")
         
@@ -499,6 +502,7 @@ class NetworkDashboard(ctk.CTk):
         self.create_devices_page()
         self.create_threats_page()
         self.create_ml_insights_page()
+        self.create_inject_page()
         
         # Show dashboard by default
         if hasattr(self, 'dashboard_frame'):
@@ -599,6 +603,23 @@ class NetworkDashboard(ctk.CTk):
         
         # ML insights content
         self.create_ml_insights_content(self.ml_insights_frame)
+    
+    def create_inject_page(self):
+        """Create anomaly injection page"""
+        self.inject_frame = ctk.CTkFrame(self.content_frame)
+        self.inject_frame.grid_columnconfigure(0, weight=1)
+        self.inject_frame.grid_rowconfigure(1, weight=1)
+        
+        # Inject title
+        inject_title = ctk.CTkLabel(
+            self.inject_frame,
+            text="Threat Injection Testing",
+            font=ctk.CTkFont(size=20, weight="bold")
+        )
+        inject_title.grid(row=0, column=0, pady=20)
+        
+        # Inject content
+        self.create_inject_content(self.inject_frame)
         
     def create_stats_cards(self, parent):
         """Create statistics cards"""
@@ -1160,6 +1181,140 @@ class NetworkDashboard(ctk.CTk):
         self.ml_progress_bar.pack(pady=(0, 10))
         self.ml_progress_bar.set(0.0)
     
+    def create_inject_content(self, parent):
+        """Create threat injection content"""
+        inject_frame = ctk.CTkFrame(parent)
+        inject_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
+        inject_frame.grid_columnconfigure(0, weight=1)
+        inject_frame.grid_rowconfigure(2, weight=1)
+        
+        # Instructions
+        instructions = ctk.CTkLabel(
+            inject_frame,
+            text="Click the buttons below to inject different types of threats and see how the ML model detects them:",
+            font=ctk.CTkFont(size=14),
+            wraplength=600
+        )
+        instructions.grid(row=0, column=0, pady=(0, 20))
+        
+        # Threat injection buttons
+        buttons_frame = ctk.CTkFrame(inject_frame)
+        buttons_frame.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        buttons_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # DDoS Attack Button
+        ddos_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Inject DDoS Attack",
+            command=self.inject_ddos_attack,
+            width=150,
+            height=40,
+            fg_color="#e74c3c",
+            hover_color="#c0392b"
+        )
+        ddos_btn.grid(row=0, column=0, padx=10, pady=10)
+        
+        # Port Scan Button
+        scan_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Inject Port Scan",
+            command=self.inject_port_scan,
+            width=150,
+            height=40,
+            fg_color="#f39c12",
+            hover_color="#e67e22"
+        )
+        scan_btn.grid(row=0, column=1, padx=10, pady=10)
+        
+        # External Communication Button
+        external_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Inject External Comm",
+            command=self.inject_external_communication,
+            width=150,
+            height=40,
+            fg_color="#9b59b6",
+            hover_color="#8e44ad"
+        )
+        external_btn.grid(row=0, column=2, padx=10, pady=10)
+        
+        # Massive Packet Button
+        massive_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Inject Massive Packet",
+            command=self.inject_massive_packet,
+            width=150,
+            height=40,
+            fg_color="#e67e22",
+            hover_color="#d35400"
+        )
+        massive_btn.grid(row=1, column=0, padx=10, pady=10)
+        
+        # Suspicious Protocol Button
+        protocol_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Inject Suspicious Protocol",
+            command=self.inject_suspicious_protocol,
+            width=150,
+            height=40,
+            fg_color="#34495e",
+            hover_color="#2c3e50"
+        )
+        protocol_btn.grid(row=1, column=1, padx=10, pady=10)
+        
+        # Random Threat Button
+        random_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Inject Random Threat",
+            command=self.inject_random_threat,
+            width=150,
+            height=40,
+            fg_color="#16a085",
+            hover_color="#138d75"
+        )
+        random_btn.grid(row=1, column=2, padx=10, pady=10)
+        
+        # Results display
+        results_frame = ctk.CTkFrame(inject_frame)
+        results_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
+        results_frame.grid_columnconfigure(0, weight=1)
+        results_frame.grid_rowconfigure(1, weight=1)
+        
+        results_label = ctk.CTkLabel(
+            results_frame,
+            text="Threat Detection Results:",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        results_label.grid(row=0, column=0, pady=(10, 5))
+        
+        # Results text area
+        self.inject_results_text = tk.Text(
+            results_frame,
+            bg='#2b2b2b',
+            fg='white',
+            font=('Consolas', 11),
+            wrap=tk.WORD,
+            height=15
+        )
+        self.inject_results_text.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        
+        # Add scrollbar
+        scrollbar = tk.Scrollbar(results_frame, orient="vertical", command=self.inject_results_text.yview)
+        scrollbar.grid(row=1, column=1, sticky="ns")
+        self.inject_results_text.configure(yscrollcommand=scrollbar.set)
+        
+        # Clear button
+        clear_btn = ctk.CTkButton(
+            results_frame,
+            text="Clear Results",
+            command=self.clear_inject_results,
+            width=120,
+            height=30,
+            fg_color="#95a5a6",
+            hover_color="#7f8c8d"
+        )
+        clear_btn.grid(row=2, column=0, pady=(0, 10))
+    
     def update_traffic_page(self):
         """Update traffic monitoring page"""
         try:
@@ -1385,6 +1540,253 @@ class NetworkDashboard(ctk.CTk):
                 
         except Exception as e:
             print(f"Error updating ML insights page: {e}")
+    
+    def inject_ddos_attack(self):
+        """Inject DDoS attack packets"""
+        self.log_injection("DDoS Attack", "Injecting DDoS attack packets...")
+        
+        for i in range(5):
+            packet = {
+                'id': f"ddos_{i}_{self.network_monitor.packet_count}",
+                'timestamp': datetime.now(),
+                'source': f"192.168.1.{random.randint(200, 254)}",
+                'destination': '192.168.1.1',
+                'protocol': 'UDP',
+                'port': random.randint(49152, 65535),
+                'size': random.randint(1500, 2000),
+                'protocol_num': 2,
+                'flags': 0
+            }
+            
+            # Add to training data and predict
+            self.ml_manager.add_training_sample(packet)
+            result = self.ml_manager.predict_anomaly(packet)
+            
+            # Add to data queue for display
+            self.data_queue.put(packet)
+            
+            # Log result
+            status = "DETECTED" if result['is_anomaly'] else "NOT DETECTED"
+            confidence = result['confidence']
+            self.log_injection_result(f"DDoS Packet {i+1}: {status} (confidence: {confidence:.3f})")
+            
+            # Add to threats if detected
+            if result['is_anomaly']:
+                threat = {
+                    'timestamp': datetime.now(),
+                    'type': 'DDoS Attack',
+                    'source': packet['source'],
+                    'destination': packet['destination'],
+                    'severity': 'HIGH',
+                    'confidence': confidence,
+                    'description': f"Large UDP packet from {packet['source']}"
+                }
+                self.threats.append(threat)
+    
+    def inject_port_scan(self):
+        """Inject port scanning packets"""
+        self.log_injection("Port Scan", "Injecting port scanning packets...")
+        
+        ports = [22, 23, 25, 53, 80, 110, 135, 139, 443, 993]
+        for i, port in enumerate(ports[:5]):  # Limit to 5 ports for demo
+            packet = {
+                'id': f"scan_{port}_{self.network_monitor.packet_count}",
+                'timestamp': datetime.now(),
+                'source': '192.168.1.250',
+                'destination': '192.168.1.1',
+                'protocol': 'TCP',
+                'port': port,
+                'size': random.randint(20, 40),
+                'protocol_num': 1,
+                'flags': 2
+            }
+            
+            # Add to training data and predict
+            self.ml_manager.add_training_sample(packet)
+            result = self.ml_manager.predict_anomaly(packet)
+            
+            # Add to data queue for display
+            self.data_queue.put(packet)
+            
+            # Log result
+            status = "DETECTED" if result['is_anomaly'] else "NOT DETECTED"
+            confidence = result['confidence']
+            self.log_injection_result(f"Port Scan {port}: {status} (confidence: {confidence:.3f})")
+            
+            # Add to threats if detected
+            if result['is_anomaly']:
+                threat = {
+                    'timestamp': datetime.now(),
+                    'type': 'Port Scan',
+                    'source': packet['source'],
+                    'destination': packet['destination'],
+                    'severity': 'MEDIUM',
+                    'confidence': confidence,
+                    'description': f"Port scan attempt on port {port}"
+                }
+                self.threats.append(threat)
+    
+    def inject_external_communication(self):
+        """Inject external communication packets"""
+        self.log_injection("External Communication", "Injecting external communication packets...")
+        
+        external_ips = ['8.8.8.8', '1.1.1.1', '208.67.222.222', '9.9.9.9']
+        for i in range(3):
+            packet = {
+                'id': f"external_{i}_{self.network_monitor.packet_count}",
+                'timestamp': datetime.now(),
+                'source': random.choice(external_ips),
+                'destination': f"192.168.1.{random.randint(100, 150)}",
+                'protocol': 'TCP',
+                'port': random.choice([80, 443, 22, 25]),
+                'size': random.randint(500, 1500),
+                'protocol_num': 1,
+                'flags': 0
+            }
+            
+            # Add to training data and predict
+            self.ml_manager.add_training_sample(packet)
+            result = self.ml_manager.predict_anomaly(packet)
+            
+            # Add to data queue for display
+            self.data_queue.put(packet)
+            
+            # Log result
+            status = "DETECTED" if result['is_anomaly'] else "NOT DETECTED"
+            confidence = result['confidence']
+            self.log_injection_result(f"External Comm {i+1}: {status} (confidence: {confidence:.3f})")
+            
+            # Add to threats if detected
+            if result['is_anomaly']:
+                threat = {
+                    'timestamp': datetime.now(),
+                    'type': 'External Communication',
+                    'source': packet['source'],
+                    'destination': packet['destination'],
+                    'severity': 'MEDIUM',
+                    'confidence': confidence,
+                    'description': f"External communication from {packet['source']}"
+                }
+                self.threats.append(threat)
+    
+    def inject_massive_packet(self):
+        """Inject massive packets"""
+        self.log_injection("Massive Packet", "Injecting massive packets...")
+        
+        for i in range(3):
+            packet = {
+                'id': f"massive_{i}_{self.network_monitor.packet_count}",
+                'timestamp': datetime.now(),
+                'source': f"192.168.1.{random.randint(10, 50)}",
+                'destination': f"192.168.1.{random.randint(51, 100)}",
+                'protocol': 'TCP',
+                'port': random.choice([80, 443]),
+                'size': random.randint(10000, 50000),
+                'protocol_num': 1,
+                'flags': 0
+            }
+            
+            # Add to training data and predict
+            self.ml_manager.add_training_sample(packet)
+            result = self.ml_manager.predict_anomaly(packet)
+            
+            # Add to data queue for display
+            self.data_queue.put(packet)
+            
+            # Log result
+            status = "DETECTED" if result['is_anomaly'] else "NOT DETECTED"
+            confidence = result['confidence']
+            self.log_injection_result(f"Massive Packet {i+1}: {status} (confidence: {confidence:.3f})")
+            
+            # Add to threats if detected
+            if result['is_anomaly']:
+                threat = {
+                    'timestamp': datetime.now(),
+                    'type': 'Massive Packet',
+                    'source': packet['source'],
+                    'destination': packet['destination'],
+                    'severity': 'HIGH',
+                    'confidence': confidence,
+                    'description': f"Massive packet ({packet['size']} bytes) from {packet['source']}"
+                }
+                self.threats.append(threat)
+    
+    def inject_suspicious_protocol(self):
+        """Inject suspicious protocol packets"""
+        self.log_injection("Suspicious Protocol", "Injecting suspicious protocol packets...")
+        
+        for i in range(3):
+            packet = {
+                'id': f"suspicious_{i}_{self.network_monitor.packet_count}",
+                'timestamp': datetime.now(),
+                'source': f"192.168.1.{random.randint(1, 50)}",
+                'destination': f"192.168.1.{random.randint(51, 100)}",
+                'protocol': 'ICMP',
+                'port': 0,
+                'size': random.randint(32, 64),
+                'protocol_num': 3,
+                'flags': 0
+            }
+            
+            # Add to training data and predict
+            self.ml_manager.add_training_sample(packet)
+            result = self.ml_manager.predict_anomaly(packet)
+            
+            # Add to data queue for display
+            self.data_queue.put(packet)
+            
+            # Log result
+            status = "DETECTED" if result['is_anomaly'] else "NOT DETECTED"
+            confidence = result['confidence']
+            self.log_injection_result(f"Suspicious Protocol {i+1}: {status} (confidence: {confidence:.3f})")
+            
+            # Add to threats if detected
+            if result['is_anomaly']:
+                threat = {
+                    'timestamp': datetime.now(),
+                    'type': 'Suspicious Protocol',
+                    'source': packet['source'],
+                    'destination': packet['destination'],
+                    'severity': 'LOW',
+                    'confidence': confidence,
+                    'description': f"Suspicious ICMP packet from {packet['source']}"
+                }
+                self.threats.append(threat)
+    
+    def inject_random_threat(self):
+        """Inject a random type of threat"""
+        threat_types = [
+            self.inject_ddos_attack,
+            self.inject_port_scan,
+            self.inject_external_communication,
+            self.inject_massive_packet,
+            self.inject_suspicious_protocol
+        ]
+        
+        random.choice(threat_types)()
+    
+    def log_injection(self, threat_type, message):
+        """Log injection start"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_message = f"[{timestamp}] {threat_type}: {message}\n"
+        
+        if hasattr(self, 'inject_results_text'):
+            self.inject_results_text.insert(tk.END, log_message)
+            self.inject_results_text.see(tk.END)
+    
+    def log_injection_result(self, result):
+        """Log injection result"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_message = f"[{timestamp}] {result}\n"
+        
+        if hasattr(self, 'inject_results_text'):
+            self.inject_results_text.insert(tk.END, log_message)
+            self.inject_results_text.see(tk.END)
+    
+    def clear_inject_results(self):
+        """Clear injection results"""
+        if hasattr(self, 'inject_results_text'):
+            self.inject_results_text.delete(1.0, tk.END)
 
 def main():
     """Main function"""
