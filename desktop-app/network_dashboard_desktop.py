@@ -41,8 +41,8 @@ class RealTimeMLManager:
         self.scalers = {}
         self.training_data = []
         self.is_trained = False
-        self.min_samples_for_training = 50
-        self.max_training_samples = 1000
+        self.min_samples_for_training = 500
+        self.max_training_samples = 2000
         
     def add_training_sample(self, packet_data):
         """Add a packet to training data"""
@@ -140,7 +140,7 @@ class RealTimeMLManager:
             self.models['one_class_svm'].fit(X_scaled)
             
             self.is_trained = True
-            print(f"Real-time ML models trained on {len(self.training_data)} samples")
+            print(f"Real-time ML models trained on {len(self.training_data)} samples (threshold: 500)")
             return True
             
         except Exception as e:
